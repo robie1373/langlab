@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LangLab</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<!-- ── User picker ────────────────────────────────────────────────────── -->
+<div id="view-picker" class="view">
+  <h1>LangLab</h1>
+  <div class="picker-buttons"></div>
+</div>
+
+<!-- ── App shell (visible after user selection) ────────────────────────── -->
+<div id="view-app" class="view">
+
+  <!-- Top bar -->
+  <header class="top-bar">
+    <span class="logo" onclick="switchUser()">LangLab</span>
+    <nav id="app-nav"></nav>
+    <span class="spacer"></span>
+    <button class="icon-btn" onclick="toggleDark()" title="Toggle dark mode">◑</button>
+    <button class="user-chip" id="user-chip"></button>
+  </header>
+
+  <!-- ── Player view ──────────────────────────────────────────────────── -->
+  <div id="view-player" class="view">
+    <div class="player-toolbar">
+      <select id="lessonSel" class="lesson-select"></select>
+      <div class="view-toggle">
+        <button id="btnKorean" class="toggle-btn on" onclick="setPlayerView('korean')">한국어</button>
+        <button id="btnFull"   class="toggle-btn"    onclick="setPlayerView('full')">Full</button>
+      </div>
+      <span id="mute-badge">MUTED</span>
+      <button class="icon-btn" onclick="openModal()" title="Keyboard shortcuts">?</button>
+    </div>
+
+    <div class="entries" id="entries"></div>
+
+    <div class="audio-bar">
+      <audio id="player-audio" controls preload="metadata"></audio>
+    </div>
+  </div>
+
+  <!-- ── Lessons view (AI-generated — phase 2) ──────────────────────── -->
+  <div id="view-lessons" class="view">
+    <div class="coming-soon">AI lessons — coming in phase 2</div>
+  </div>
+
+  <!-- ── Tutor view (phase 2) ─────────────────────────────────────────── -->
+  <div id="view-tutor" class="view">
+    <div class="coming-soon">Tutor — coming in phase 2</div>
+  </div>
+
+  <!-- ── Flashcards view (phase 2) ────────────────────────────────────── -->
+  <div id="view-flashcards" class="view">
+    <div class="coming-soon">Flashcards — coming in phase 2</div>
+  </div>
+
+  <!-- ── Vocab view (phase 2) ─────────────────────────────────────────── -->
+  <div id="view-vocab" class="view">
+    <div class="coming-soon">Vocab — coming in phase 2</div>
+  </div>
+
+  <!-- ── Progress view (phase 2) ──────────────────────────────────────── -->
+  <div id="view-progress" class="view">
+    <div class="coming-soon">Progress — coming in phase 2</div>
+  </div>
+
+</div><!-- /view-app -->
+
+<!-- ── Word rating card ──────────────────────────────────────────────── -->
+<div id="ratingCard" class="rating-card">
+  <div class="word-display"></div>
+  <div class="translation"></div>
+  <div class="rating-buttons">
+    <button class="rating-btn" data-r="1">Again</button>
+    <button class="rating-btn" data-r="2">Hard</button>
+    <button class="rating-btn" data-r="3">Good</button>
+    <button class="rating-btn" data-r="4">Easy</button>
+  </div>
+  <div class="rating-actions">
+    <button class="rating-action-btn btn-mark-known">✓ Known</button>
+  </div>
+</div>
+
+<!-- ── Keyboard shortcut modal ───────────────────────────────────────── -->
+<div id="modalOverlay" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h2>Keyboard shortcuts</h2>
+    <div class="shortcut-grid">
+      <kbd>Space</kbd>    <span>Play / pause</span>
+      <kbd>A</kbd>        <span>−5 seconds</span>
+      <kbd>D</kbd>        <span>+5 seconds</span>
+      <kbd>J</kbd>        <span>Next cue (step mode)</span>
+      <kbd>K</kbd>        <span>Previous cue (step mode)</span>
+      <kbd>R</kbd>        <span>Replay current cue</span>
+      <kbd>M</kbd>        <span>Mute / unmute</span>
+      <kbd>←</kbd><kbd>↑</kbd> <span>Previous lesson</span>
+      <kbd>→</kbd><kbd>↓</kbd> <span>Next lesson</span>
+      <kbd>?</kbd>        <span>This help</span>
+      <kbd>Esc</kbd>      <span>Close</span>
+    </div>
+    <button class="modal-close" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>

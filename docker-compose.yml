@@ -1,0 +1,12 @@
+services:
+  langlab:
+    build: .
+    ports:
+      - "${PORT:-8181}:8080"
+    volumes:
+      - ./data/study.db:/app/data/study.db
+      - ./data/languages:/app/data/languages:ro
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+    restart: unless-stopped
