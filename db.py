@@ -185,7 +185,7 @@ class Database:
     def upsert_word(self, language: str, word: str, translation: Optional[str],
                     source: str, source_lesson: Optional[str],
                     audio_path: Optional[str]) -> int:
-        cur = self._conn.execute(
+        self._conn.execute(
             """INSERT INTO words (language, word, translation, source, source_lesson, audio_path)
                VALUES (?,?,?,?,?,?)
                ON CONFLICT(language, word) DO UPDATE SET
@@ -194,7 +194,7 @@ class Database:
             (language, word, translation, source, source_lesson, audio_path)
         )
         self._conn.commit()
-        return cur.lastrowid or self._conn.execute(
+        return self._conn.execute(
             "SELECT id FROM words WHERE language=? AND word=?", (language, word)
         ).fetchone()['id']
 
