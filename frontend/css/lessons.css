@@ -1,0 +1,457 @@
+/* ── AI Lessons view ────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+
+/* ── shell ──────────────────────────────────────────────────────────────── */
+
+#view-lessons {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--bar-h));
+}
+#view-lessons.active { display: flex; }
+
+.lesson-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 1rem;
+}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+
+.lesson-header {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.lesson-progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.lesson-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+
+.lesson-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lesson-phase-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── lesson body ────────────────────────────────────────────────────────── */
+
+.lesson-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 1rem;
+}
+
+/* ── start screen ───────────────────────────────────────────────────────── */
+
+.lesson-start {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 1rem;
+  text-align: center;
+}
+
+.lesson-start-icon {
+  font-size: 4rem;
+}
+
+.lesson-start h2 {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+}
+
+.lesson-start p {
+  color: var(--text-muted);
+  max-width: 320px;
+}
+
+.lesson-start-btn,
+button.lesson-start-btn {
+  padding: 0.85rem 2.5rem;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.lesson-start-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.lesson-start-btn:active { transform: translateY(0); }
+
+/* ── loading ────────────────────────────────────────────────────────────── */
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  gap: 1rem;
+  color: var(--text-muted);
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── phase container ────────────────────────────────────────────────────── */
+
+.lesson-phase {
+  padding: 0.5rem 0 1.5rem;
+}
+
+.phase-title {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin-bottom: 1rem;
+}
+
+.phase-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+/* ── vocab ──────────────────────────────────────────────────────────────── */
+
+.lesson-vocab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.lesson-vocab-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.lesson-vocab-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.lv-word {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  margin-bottom: 0.25rem;
+}
+
+.lv-gender {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: -apple-system, sans-serif;
+  margin-left: 0.25rem;
+}
+
+.lv-translation {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.lv-example {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+/* ── grammar ────────────────────────────────────────────────────────────── */
+
+.grammar-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.grammar-explanation {
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.grammar-rule {
+  background: var(--bg);
+  border-left: 3px solid var(--accent);
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.9rem;
+}
+
+.grammar-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.grammar-example.clickable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.grammar-example.clickable:hover { background: var(--active-bg); }
+
+.ge-src {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1rem;
+}
+
+.ge-eng {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── reading ────────────────────────────────────────────────────────────── */
+
+.reading-passage {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.1rem;
+  line-height: 1.9;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.reading-actions {
+  margin-bottom: 0.75rem;
+}
+
+.reading-btn {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.1s;
+}
+.reading-btn:hover { background: var(--active-bg); }
+
+.reading-translation {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+}
+.reading-translation summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.reading-translation p {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ── dialogue ───────────────────────────────────────────────────────────── */
+
+.dialogue-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dialogue-line {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  transition: background 0.1s;
+}
+.dialogue-line:hover { background: var(--active-bg); }
+
+.dialogue-line.side-b {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.dl-speaker {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  padding-top: 0.2rem;
+}
+
+.dl-text {
+  font-size: 0.95rem;
+}
+
+.dl-en {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── culture ────────────────────────────────────────────────────────────── */
+
+.culture-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.culture-content {
+  line-height: 1.7;
+  color: var(--text);
+  margin-top: 0.75rem;
+}
+
+.culture-fact {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--active-bg);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+/* ── summary ────────────────────────────────────────────────────────────── */
+
+.lesson-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+  padding-top: 2rem;
+}
+
+.summary-check {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--active-bg);
+  border: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.lesson-summary h3 {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+}
+
+.summary-topic {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.summary-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.ss-num { font-size: 2rem; font-weight: 600; color: var(--accent); }
+.ss-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+
+/* ── nav ────────────────────────────────────────────────────────────────── */
+
+.lesson-nav {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.lesson-nav-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.1s;
+}
+.lesson-nav-btn:hover:not(:disabled) { background: var(--active-bg); }
+.lesson-nav-btn:disabled { opacity: 0.4; cursor: default; }
+.lesson-nav-btn.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.lesson-nav-btn.primary:hover { opacity: 0.9; }
+
+/* ── error ──────────────────────────────────────────────────────────────── */
+
+.lesson-error {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+.lesson-error p { margin-bottom: 1rem; }
+
+.hidden { display: none !important; }

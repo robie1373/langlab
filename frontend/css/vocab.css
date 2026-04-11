@@ -1,0 +1,231 @@
+/* ── Vocabulary browser ─────────────────────────────────────────────────── */
+
+#view-vocab.active { display: block; }
+
+.vocab-browser {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+
+.vocab-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.vocab-filters {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.vocab-filter {
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.vocab-filter:hover  { border-color: var(--accent); color: var(--text); }
+.vocab-filter.active {
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.vocab-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ── list ───────────────────────────────────────────────────────────────── */
+
+.vocab-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.vocab-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: background 0.1s;
+}
+.vocab-row:hover { background: var(--active-bg); }
+
+.vr-word {
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.vr-translation {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.vr-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.vr-state {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border: 1px solid currentColor;
+}
+
+.state-new        { color: #7f8c8d; }
+.state-learning   { color: #d68910; }
+.state-review     { color: #2471a3; }
+.state-relearning { color: #c0392b; }
+
+.vr-reps {
+  font-variant-numeric: tabular-nums;
+}
+
+.vr-due {
+  display: none;
+}
+@media (min-width: 500px) {
+  .vr-due { display: inline; }
+}
+
+/* ── empty/error ────────────────────────────────────────────────────────── */
+
+.vocab-empty,
+.vocab-error {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 3rem 1rem;
+  font-size: 0.95rem;
+}
+
+/* ── progress view ──────────────────────────────────────────────────────── */
+
+.progress-view {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.progress-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.progress-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.pc-num {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.pc-num.state-new        { color: #7f8c8d; }
+.pc-num.state-learning   { color: #d68910; }
+.pc-num.state-review     { color: #2471a3; }
+
+.pc-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.progress-section-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 0.75rem;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sr-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+.sr-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.sr-type {
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.sr-lesson {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sr-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.sr-date { font-size: 0.8rem; color: var(--text-muted); }
+.sr-time { font-size: 0.72rem; color: var(--text-muted); }
+
+.progress-empty,
+.progress-error {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
+}

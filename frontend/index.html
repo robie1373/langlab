@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LangLab</title>
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/flashcards.css">
+  <link rel="stylesheet" href="/css/lessons.css">
+  <link rel="stylesheet" href="/css/tutor.css">
+  <link rel="stylesheet" href="/css/vocab.css">
 </head>
 <body>
 
@@ -45,29 +49,187 @@
     </div>
   </div>
 
-  <!-- ── Lessons view (AI-generated — phase 2) ──────────────────────── -->
+  <!-- ── Lessons view ─────────────────────────────────────────────────── -->
   <div id="view-lessons" class="view">
-    <div class="coming-soon">AI lessons — coming in phase 2</div>
+    <div class="lesson-shell">
+
+      <div class="lesson-header">
+        <div class="lesson-progress-bar">
+          <div class="lesson-progress-fill" id="lesson-progress-fill"></div>
+        </div>
+        <div class="lesson-meta">
+          <span class="lesson-phase-label" id="lesson-phase-label">—</span>
+        </div>
+      </div>
+
+      <div class="lesson-body">
+        <!-- Start screen -->
+        <div class="lesson-start" id="lesson-start">
+          <div class="lesson-start-icon">📚</div>
+          <h2>AI Lesson</h2>
+          <p>Generate a personalized lesson based on your level.</p>
+          <button class="lesson-start-btn" id="btn-lesson-start">Generate Lesson</button>
+        </div>
+
+        <!-- Content (hidden until generated) -->
+        <div class="lesson-content hidden" id="lesson-content"></div>
+      </div>
+
+      <div class="lesson-nav hidden" id="lesson-nav">
+        <button class="lesson-nav-btn" id="btn-lesson-back" disabled>← Back</button>
+        <button class="lesson-nav-btn primary" id="btn-lesson-next">Next →</button>
+      </div>
+
+    </div>
   </div>
 
-  <!-- ── Tutor view (phase 2) ─────────────────────────────────────────── -->
+  <!-- ── Tutor view ────────────────────────────────────────────────────── -->
   <div id="view-tutor" class="view">
-    <div class="coming-soon">Tutor — coming in phase 2</div>
+    <div class="tutor-shell">
+
+      <div class="tutor-header">
+        <select class="tutor-scenario" id="tutor-scenario">
+          <!-- populated by tutor.js -->
+        </select>
+        <button class="btn-end-convo hidden" id="btn-end-convo">End</button>
+      </div>
+
+      <div class="tutor-chat" id="tutor-chat">
+        <div class="chat-welcome">
+          <p>Choose a scenario and start speaking or typing below.</p>
+        </div>
+      </div>
+
+      <div class="tutor-feedback hidden" id="tutor-feedback">
+        <div class="feedback-content" id="feedback-content"></div>
+      </div>
+
+      <div class="tutor-input-area">
+        <div class="mic-status hidden" id="mic-status">Listening…</div>
+        <div class="tutor-input">
+          <button class="btn-mic" id="btn-mic" title="Voice input">🎤</button>
+          <input class="tutor-text-input" id="tutor-text-input"
+                 type="text" placeholder="Type your message…" autocomplete="off">
+          <button class="btn-send" id="btn-send-tutor">Send</button>
+        </div>
+      </div>
+
+    </div>
   </div>
 
-  <!-- ── Flashcards view (phase 2) ────────────────────────────────────── -->
+  <!-- ── Flashcards view ───────────────────────────────────────────────── -->
   <div id="view-flashcards" class="view">
-    <div class="coming-soon">Flashcards — coming in phase 2</div>
-  </div>
 
-  <!-- ── Vocab view (phase 2) ─────────────────────────────────────────── -->
+    <!-- Queue screen -->
+    <div id="fc-queue" class="fc-screen">
+      <div class="fc-queue-inner">
+        <div class="fc-due-ring">
+          <span class="fc-due-number" id="fc-due-number">0</span>
+          <span class="fc-due-label">due</span>
+        </div>
+        <p class="fc-queue-empty" id="fc-queue-msg"></p>
+        <button class="fc-start-btn" id="fc-start-btn">Begin Review</button>
+      </div>
+    </div>
+
+    <!-- Review screen -->
+    <div id="fc-review" class="fc-screen">
+      <div class="fc-progress">
+        <div class="fc-progress-track">
+          <div class="fc-progress-fill"></div>
+        </div>
+        <span class="fc-progress-text">0 / 0</span>
+      </div>
+
+      <div class="fc-stage">
+        <div class="fc-card-wrap">
+          <div class="fc-card" id="fc-card">
+            <!-- Front face -->
+            <div class="fc-face fc-front">
+              <div class="fc-word-display"></div>
+              <button class="fc-audio-btn hidden" id="fc-audio-btn">🔊</button>
+            </div>
+            <!-- Back face -->
+            <div class="fc-face fc-back">
+              <div class="fc-word-display"></div>
+              <div class="fc-translation"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fc-actions">
+        <div class="fc-show-wrap" id="fc-show-wrap">
+          <button class="fc-show-btn" id="fc-show-btn">
+            Show answer <kbd>Space</kbd>
+          </button>
+        </div>
+        <div class="fc-rating-wrap hidden" id="fc-rating-wrap">
+          <button class="fc-rate again" data-r="1">Again <kbd>1</kbd></button>
+          <button class="fc-rate hard"  data-r="2">Hard  <kbd>2</kbd></button>
+          <button class="fc-rate good"  data-r="3">Good  <kbd>3</kbd></button>
+          <button class="fc-rate easy"  data-r="4">Easy  <kbd>4</kbd></button>
+        </div>
+      </div>
+
+      <audio id="fc-audio" preload="none"></audio>
+    </div>
+
+    <!-- Done screen -->
+    <div id="fc-done" class="fc-screen">
+      <div class="fc-done-inner">
+        <div class="fc-done-check">✓</div>
+        <h2 class="fc-done-title">Session complete</h2>
+        <div class="fc-dist">
+          <div class="fc-dist-item again">
+            <span class="fc-dist-num">0</span>
+            <span class="fc-dist-label">Again</span>
+          </div>
+          <div class="fc-dist-item hard">
+            <span class="fc-dist-num">0</span>
+            <span class="fc-dist-label">Hard</span>
+          </div>
+          <div class="fc-dist-item good">
+            <span class="fc-dist-num">0</span>
+            <span class="fc-dist-label">Good</span>
+          </div>
+          <div class="fc-dist-item easy">
+            <span class="fc-dist-num">0</span>
+            <span class="fc-dist-label">Easy</span>
+          </div>
+        </div>
+        <div class="fc-done-total"></div>
+        <div class="fc-done-btns">
+          <button class="fc-done-btn" id="fc-done-again">Review again</button>
+          <button class="fc-done-btn primary" id="fc-done-home">Done</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /view-flashcards -->
+
+  <!-- ── Vocab view ────────────────────────────────────────────────────── -->
   <div id="view-vocab" class="view">
-    <div class="coming-soon">Vocab — coming in phase 2</div>
+    <div class="vocab-browser">
+      <div class="vocab-header">
+        <div class="vocab-filters" id="vocab-filters">
+          <button class="vocab-filter active" data-state="">All</button>
+          <button class="vocab-filter" data-state="0">New</button>
+          <button class="vocab-filter" data-state="1">Learning</button>
+          <button class="vocab-filter" data-state="2">Review</button>
+        </div>
+        <span class="vocab-count" id="vocab-count"></span>
+      </div>
+      <div class="vocab-list" id="vocab-list"></div>
+    </div>
   </div>
 
-  <!-- ── Progress view (phase 2) ──────────────────────────────────────── -->
+  <!-- ── Progress view ─────────────────────────────────────────────────── -->
   <div id="view-progress" class="view">
-    <div class="coming-soon">Progress — coming in phase 2</div>
+    <div class="progress-view">
+      <div class="progress-stats" id="progress-stats"></div>
+      <div class="progress-sessions" id="progress-sessions"></div>
+    </div>
   </div>
 
 </div><!-- /view-app -->

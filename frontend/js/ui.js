@@ -46,3 +46,10 @@ export function escapeHtml(str) {
   d.textContent = str;
   return d.innerHTML;
 }
+
+export function showLoading(el, msg = 'Loading…') {
+  el.innerHTML = `<div class="loading-state">
+    <div class="loading-spinner"></div>
+    <p>${escapeHtml(msg)}</p>
+  </div>`;
+}
