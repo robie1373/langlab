@@ -1,9 +1,9 @@
 /* ── AI Tutor view ──────────────────────────────────────────────────────── */
 
 #view-tutor {
-  display: flex;
   flex-direction: column;
   height: calc(100vh - var(--bar-h));
+  height: calc(100dvh - var(--bar-h));  /* dvh accounts for iOS Safari URL bar */
 }
 #view-tutor.active { display: flex; }
 

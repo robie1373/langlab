@@ -5,9 +5,9 @@
 /* ── shell ──────────────────────────────────────────────────────────────── */
 
 #view-lessons {
-  display: flex;
   flex-direction: column;
   min-height: calc(100vh - var(--bar-h));
+  min-height: calc(100dvh - var(--bar-h));
 }
 #view-lessons.active { display: flex; }
 

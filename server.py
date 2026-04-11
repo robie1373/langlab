@@ -13,7 +13,7 @@ from db import Database
 
 BASE_DIR     = Path(__file__).parent
 FRONTEND_DIR = BASE_DIR / 'frontend'
-DATA_DIR     = BASE_DIR / 'data'
+DATA_DIR     = Path(os.environ.get('LANGLAB_DATA_DIR', str(BASE_DIR / 'data')))
 
 # Security headers added to every response
 SECURITY_HEADERS = {

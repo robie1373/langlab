@@ -92,8 +92,10 @@ async function startSession(user) {
 // ── app bar ───────────────────────────────────────────────────────────────────
 
 function buildAppBar(user) {
-  const nav = document.getElementById('app-nav');
-  nav.innerHTML = '';
+  const nav        = document.getElementById('app-nav');
+  const mobileMenu = document.getElementById('mobile-menu');
+  nav.innerHTML        = '';
+  mobileMenu.innerHTML = '';
 
   const views = [
     { id: 'view-player',     label: 'Player',     langs: ['korean'] },
@@ -105,17 +107,38 @@ function buildAppBar(user) {
   ].filter(v => v.langs.includes(user.default_lang));
 
   views.forEach(v => {
+    // Desktop nav
     const btn = document.createElement('button');
     btn.className    = 'nav-btn';
     btn.dataset.view = v.id;
     btn.textContent  = v.label;
     btn.addEventListener('click', () => navigate(v.id));
     nav.appendChild(btn);
+
+    // Mobile menu
+    const mbtn = document.createElement('button');
+    mbtn.className    = 'mobile-menu-btn';
+    mbtn.dataset.view = v.id;
+    mbtn.textContent  = v.label;
+    mbtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navigate(v.id);
+      closeMobileMenu();
+    });
+    mobileMenu.appendChild(mbtn);
   });
 
   document.getElementById('user-chip').textContent = user.display_name;
   document.getElementById('user-chip').addEventListener('click', switchUser);
 }
+
+function closeMobileMenu() {
+  document.getElementById('mobile-menu').classList.remove('open');
+  document.getElementById('hamburger-btn').textContent = '☰';
+}
+
+// Close menu on tap outside
+document.addEventListener('click', () => closeMobileMenu());
 
 // ── routing ───────────────────────────────────────────────────────────────────
 
@@ -135,6 +158,14 @@ async function navigate(viewId) {
 }
 
 // ── global controls ───────────────────────────────────────────────────────────
+
+window.toggleMobileMenu = function (e) {
+  e.stopPropagation();
+  const menu = document.getElementById('mobile-menu');
+  const btn  = document.getElementById('hamburger-btn');
+  const open = menu.classList.toggle('open');
+  btn.textContent = open ? '✕' : '☰';
+};
 
 window.switchUser = function () {
   currentUser    = null;

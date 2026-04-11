@@ -5,10 +5,18 @@
 export function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const el = document.getElementById(id);
-  if (el) el.classList.add('active');
+  if (el) {
+    el.classList.add('active');
+    // Re-activate any .view ancestors so nested views stay visible
+    let p = el.parentElement;
+    while (p) {
+      if (p.classList && p.classList.contains('view')) p.classList.add('active');
+      p = p.parentElement;
+    }
+  }
 
-  // Update nav button state (only relevant when the app bar is visible)
-  document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
+  // Update active state on both desktop nav and mobile menu buttons
+  document.querySelectorAll('.nav-btn[data-view], .mobile-menu-btn[data-view]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.view === id);
   });
 }
