@@ -10,59 +10,87 @@
 - Internal port: 8080 → nginx → HTTPS 443
 - State dir: /var/lib/langlab/ (db + audio files)
 - Python deps: stdlib + local fsrs.py only (no pip!)
-- Source: pkgs.fetchFromGitHub robie1373/langlab (public repo)
+- Source: flake input github:robie1373/langlab (flake = false; pinned in flake.lock)
 - Secrets: single langlab-env.age file containing KEY=value pairs:
     GEMINI_API_KEY=...
     CLAUDE_API_KEY=...
 
-## Step 1 — langlab repo
-- [ ] Add LANGLAB_DATA_DIR env var support to server.py
-      (currently hardcodes BASE_DIR / 'data'; NixOS needs /var/lib/langlab)
-- [ ] Commit + push
+## Step 1 — langlab repo ✓ DONE
+- [x] Add LANGLAB_DATA_DIR env var support to server.py
+- [x] Commit + push (commit 1bf252c)
 
-## Step 2 — homeLab repo (docs/state first — required by CLAUDE.md)
-- [ ] Create docs/design-docs/langlab.md
-- [ ] Add stub entry to services.yaml (VMID 111, IP 192.168.20.11, status: planned)
-- [ ] Add 192.168.20.11 to docs/network/vlans.md static IP table
-- [ ] Commit
+## Step 2 — homeLab repo ✓ DONE
+- [x] Create docs/design-docs/langlab.md
+- [x] Create docs/services/langlab.md (provisioning checklist + ops notes)
+- [x] Add stub entry to services.yaml
+- [x] Add 192.168.20.11 to docs/network/vlans.md
 
-## Step 3 — nixos-config repo
-- [ ] Read modules/hosts (or modules/hosts.nix) to understand flake-parts
-      nixosConfigurations pattern — need this before writing host config
-- [ ] Create modules/_system/langlab.nix  (service + nginx + tailscale-cert + agenix)
-- [ ] Create hosts/langlab/configuration.nix
-- [ ] Create hosts/langlab/hardware-configuration.nix  (stub — nixos-anywhere overwrites)
-- [ ] Create hosts/langlab/disko.nix  (copy ntfy pattern, bump disk to 16GB)
-- [ ] Create hosts/langlab/ssh_host_ed25519_key.pub  (placeholder — replaced at provision time)
-- [ ] Update secrets/secrets.nix — add langlab host key + langlab-env.age entry
-- [ ] Re-key tailscale-auth-key.age to include langlab:
-      nix run github:ryantm/agenix -- -r
-- [ ] Encrypt langlab-env.age:
-      op read op://devops/LangLab\ env/notesPlain | age -r "<langlab-pubkey>" -o secrets/langlab-env.age
-      (create the 1Password item first with GEMINI_API_KEY= and CLAUDE_API_KEY=)
-- [ ] Wire langlab into flake nixosConfigurations (follow existing pattern)
-- [ ] Commit
+## Step 3 — nixos-config repo ✓ DONE (except langlab-env.age)
+- [x] Create modules/_system/langlab.nix
+- [x] Create modules/hosts/langlab/default.nix
+- [x] Create hosts/langlab/configuration.nix
+- [x] Create hosts/langlab/hardware-configuration.nix (stub)
+- [x] Create hosts/langlab/disko.nix
+- [x] Generate real host SSH key → stored in 1Password devops/"langlab host SSH key"
+- [x] hosts/langlab/ssh_host_ed25519_key.pub — real key committed
+- [x] secrets/secrets.nix — langlab key wired in
+- [x] tailscale-auth-key.age rekeyed to include langlab
+- [x] Wire langlab into flake nixosConfigurations
+- [ ] **NEXT: Create "LangLab env" 1Password item** (devops vault):
+      GEMINI_API_KEY=<from Google AI Studio>
+      CLAUDE_API_KEY=<from Anthropic console>
+      Store as Secure Note with notesPlain field.
+- [ ] **NEXT: Encrypt langlab-env.age:**
+      ```
+      eval $(op signin)
+      cd ~/nixos-config/secrets
+      op read 'op://devops/LangLab env/notesPlain' | \
+        nix run nixpkgs#age -- \
+          -r "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDb0aYMGmaB70EJZ32jqi9+tKncViDYp9CEYUAuoa2Td" \
+          -o langlab-env.age
+      git add langlab-env.age && git commit -m "Add langlab-env.age"
+      ```
 
-## Step 4 — VM provisioning (manual, on pve)
-Per new-nixos-service.md runbook:
-- [ ] Clone template 9001 → VMID 111, name=langlab
-- [ ] Set NIC VLAN tag 20
-- [ ] Bump RAM to 2048 MB (kexec requirement)
-- [ ] Fix efidisk: delete cloned efidisk0, recreate fresh, set boot order=virtio0
-- [ ] Start VM; manual EFI boot step in PVE console (Boot Manager → EFI boot from file)
-- [ ] Get DHCP IP from VLAN 20 lease (via OPNsense or pve2 jump)
-- [ ] Generate host SSH key, store private key in 1Password, commit public key
-- [ ] Encrypt all langlab secrets with the real host public key
-- [ ] nixos-anywhere (flipper must be on VLAN 20 port or lab SSID)
-- [ ] Switch back to OVMF after nixos-anywhere, restart
-      (Tailscale joins automatically on first boot via tailscale-autoconnect.nix)
+## Step 4 — VM provisioning (partially done)
+- [x] Clone template 9001 → VMID 111, name=langlab
+- [x] Set NIC VLAN tag 20
+- [x] Bump RAM to 2048 MB
+- [x] Fix efidisk: deleted cloned efidisk0, recreated fresh, boot order=virtio0
+- [ ] **NEXT: Connect flipper to VLAN 20** (lab AP or wired port)
+- [ ] **NEXT: Start VM and get DHCP IP:**
+      ```
+      ssh root@192.168.7.40 "qm start 111"
+      # SeaBIOS boot — no manual EFI step needed (start under SeaBIOS, switch to OVMF after)
+      # Get IP: watch OPNsense DHCP leases or check from pve after agent comes up
+      ```
+- [ ] **NEXT: Run nixos-anywhere** (from flipper on VLAN 20):
+      ```
+      eval $(op signin)
+      mkdir -p /tmp/langlab-bootstrap/etc/ssh
+      op read "op://devops/langlab host SSH key/notesPlain" \
+        > /tmp/langlab-bootstrap/etc/ssh/ssh_host_ed25519_key
+      chmod 600 /tmp/langlab-bootstrap/etc/ssh/ssh_host_ed25519_key
+      nixos-anywhere \
+        --flake ~/nixos-config#langlab \
+        --extra-files /tmp/langlab-bootstrap \
+        root@<DHCP-IP>
+      shred -u /tmp/langlab-bootstrap/etc/ssh/ssh_host_ed25519_key
+      rm -rf /tmp/langlab-bootstrap
+      ```
+- [ ] After nixos-anywhere — switch to OVMF and restart:
+      ```
+      ssh root@192.168.7.40 "qm stop 111 --skiplock"
+      ssh root@192.168.7.40 "qm set 111 --bios ovmf"
+      ssh root@192.168.7.40 "qm start 111"
+      ```
+      (Tailscale joins automatically via tailscale-autoconnect.nix)
 
 ## Step 5 — Post-deploy verification
 - [ ] SSH via Tailscale: ssh root@langlab.vimba-stairs.ts.net
 - [ ] systemctl status langlab
 - [ ] curl https://langlab.vimba-stairs.ts.net/api/users
 - [ ] wc -c /run/agenix/langlab-env  (must be > 0)
-- [ ] Reset RAM: qm set 111 --memory 1024
+- [ ] Reset RAM: ssh root@192.168.7.40 "qm set 111 --memory 1024"
 
 ## Step 6 — Closeout
 - [ ] Update docs/homeLab-state-map.md (add to compute resources table)
