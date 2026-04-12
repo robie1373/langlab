@@ -6,6 +6,8 @@ import json
 import mimetypes
 import os
 import re
+import shutil
+import subprocess
 import tempfile
 import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -41,6 +43,15 @@ def _tc_to_secs(parts: tuple) -> float:
         return int(h)*3600 + int(m)*60 + int(s) + int(ms)/(10**len(ms))
     m, s, ms = parts
     return int(m)*60 + int(s) + int(ms)/(10**len(ms))
+
+
+def _find_ffmpeg() -> str | None:
+    found = shutil.which('ffmpeg')
+    if found:
+        return found
+    import glob
+    candidates = glob.glob('/nix/store/*ffmpeg*/bin/ffmpeg')
+    return sorted(candidates)[-1] if candidates else None
 
 
 def _parse_vtt_text(text: str) -> list:
@@ -292,9 +303,10 @@ class LangLabHandler(BaseHTTPRequestHandler):
 
     def _handle_ingest_vtt(self):
         try:
-            parts    = self._parse_multipart()
-            language = parts.get('language', 'korean')
-            user_id  = int(parts.get('user_id', 0))
+            parts     = self._parse_multipart()
+            language  = parts.get('language', 'korean')
+            user_id   = int(parts.get('user_id', 0))
+            unit_name = (parts.get('unit_name') or 'unit-1').strip() or 'unit-1'
 
             files = parts.get('files', [])
             if isinstance(files, dict):
@@ -310,35 +322,72 @@ class LangLabHandler(BaseHTTPRequestHandler):
             if not vtts:
                 return self._err(400, 'No VTT files provided')
 
-            lessons_added = words_added = 0
+            ffmpeg_bin    = _find_ffmpeg()
+            have_ffmpeg   = ffmpeg_bin is not None
+            lessons_added = words_added = clips_made = 0
+
             for stem, vtt_file in sorted(vtts.items()):
-                lesson_path = f'uploaded/{stem}'
+                lesson_path = f'pimsleur/{unit_name}/{stem}'
                 text        = vtt_file['data'].decode('utf-8', errors='replace')
                 entries     = _parse_vtt_text(text)
 
-                mp3_rel = None
+                # Save MP3 to canonical location
+                mp3_rel      = None
+                mp3_full     = None
                 if stem in mp3s:
-                    mp3_dir = DATA_DIR / 'languages' / language / 'uploaded'
+                    mp3_dir  = DATA_DIR / 'languages' / language / 'pimsleur' / unit_name
                     mp3_dir.mkdir(parents=True, exist_ok=True)
-                    (mp3_dir / f'{stem}.mp3').write_bytes(mp3s[stem]['data'])
-                    mp3_rel = f'{language}/uploaded/{stem}.mp3'
+                    mp3_full = mp3_dir / f'{stem}.mp3'
+                    mp3_full.write_bytes(mp3s[stem]['data'])
+                    mp3_rel  = f'{language}/pimsleur/{unit_name}/{stem}.mp3'
 
                 self.db.upsert_lesson(language, lesson_path, stem, mp3_rel, entries)
                 lessons_added += 1
 
                 if user_id:
-                    cards   = _pair_korean(entries, lesson_path)
-                    deck_id = self.db.ensure_deck(user_id, stem, 'lesson')
+                    cards    = _pair_korean(entries, lesson_path)
+                    unit_lbl = unit_name.replace('-', ' ').title()
+                    stem_lbl = stem.replace('-', ' ').title()
+                    deck_id  = self.db.ensure_deck(
+                        user_id, f'Pimsleur {unit_lbl} {stem_lbl}', 'lesson'
+                    )
+
                     for card in cards:
+                        audio_rel = None
+                        if mp3_full and mp3_full.exists() and have_ffmpeg \
+                                and card['end'] > card['start']:
+                            clip_name = (f"{stem}_"
+                                         f"{card['word'].encode('utf-8').hex()[:32]}.mp3")
+                            clip_dir  = (DATA_DIR / 'languages' / language
+                                         / 'clips' / language / 'pimsleur' / unit_name)
+                            clip_dir.mkdir(parents=True, exist_ok=True)
+                            r = subprocess.run(
+                                [ffmpeg_bin, '-y', '-loglevel', 'error',
+                                 '-i', str(mp3_full),
+                                 '-ss', str(card['start']),
+                                 '-t',  str(card['end'] - card['start'] + 0.1),
+                                 '-c', 'copy', str(clip_dir / clip_name)],
+                                capture_output=True,
+                            )
+                            if r.returncode == 0:
+                                audio_rel = (f'{language}/clips/{language}'
+                                             f'/pimsleur/{unit_name}/{clip_name}')
+                                clips_made += 1
+
                         wid = self.db.upsert_word(
                             language, card['word'], card['translation'],
-                            'pimsleur', lesson_path, None,
+                            'pimsleur', lesson_path, audio_rel,
                         )
                         self.db.ensure_user_vocab(user_id, wid)
                         self.db.add_word_to_deck(deck_id, wid)
                         words_added += 1
 
-            self._json({'lessons': lessons_added, 'words': words_added})
+            self._json({
+                'lessons': lessons_added,
+                'words':   words_added,
+                'clips':   clips_made,
+                'ffmpeg':  have_ffmpeg,
+            })
         except Exception as e:
             self._err(500, str(e))
 

@@ -179,24 +179,30 @@ async function _doIngestVtt() {
   const vtts = files.filter(f => f.name.toLowerCase().endsWith('.vtt'));
   if (!vtts.length) { _log('No .vtt files in selection.', 'warn'); return; }
 
-  const language = document.getElementById('admin-lesson-lang').value;
-  const user_id  = document.getElementById('admin-lesson-user').value;
+  const language  = document.getElementById('admin-lesson-lang').value;
+  const user_id   = document.getElementById('admin-lesson-user').value;
+  const unit_name = (document.getElementById('admin-unit-name').value || 'unit-1').trim();
 
   const btn = document.getElementById('admin-ingest-btn');
   btn.disabled = true;
   btn.textContent = 'Ingesting…';
-  _log(`Ingesting ${vtts.length} VTT file${vtts.length !== 1 ? 's' : ''}…`);
+  const mp3Count = files.filter(f => f.name.toLowerCase().endsWith('.mp3')).length;
+  _log(`Ingesting ${vtts.length} lesson${vtts.length !== 1 ? 's' : ''} (${mp3Count} MP3s) into ${unit_name}…`);
 
   const form = new FormData();
-  form.append('language', language);
-  form.append('user_id',  user_id);
+  form.append('language',  language);
+  form.append('user_id',   user_id);
+  form.append('unit_name', unit_name);
   files.forEach(f => form.append('files', f, f.name));
 
   try {
     const res  = await fetch('/api/admin/ingest-vtt', { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || res.statusText);
-    _log(`✓ ${data.lessons} lesson${data.lessons !== 1 ? 's' : ''} added, ${data.words} words extracted.`, 'ok');
+    const clipNote = data.ffmpeg
+      ? `${data.clips} word clips extracted`
+      : 'ffmpeg not found — word audio clips skipped';
+    _log(`✓ ${data.lessons} lesson${data.lessons !== 1 ? 's' : ''} added, ${data.words} words, ${clipNote}.`, 'ok');
     await _refreshStats();
   } catch (e) {
     _log(`✗ ${e.message}`, 'error');
