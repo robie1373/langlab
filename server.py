@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """LangLab — language learning suite server."""
 
+import email
 import json
 import mimetypes
 import os
 import re
+import tempfile
+import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -21,6 +24,64 @@ SECURITY_HEADERS = {
     'X-Frame-Options':        'SAMEORIGIN',
     'Referrer-Policy':        'strict-origin-when-cross-origin',
 }
+
+
+# ── VTT parsing utilities (for admin ingest endpoint) ────────────────────────
+
+_KOREAN_RE   = re.compile(r'[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]')
+_TIMECODE_RE = re.compile(
+    r'(\d{1,2}):(\d{2}):(\d{2})\.(\d+)\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})\.(\d+)'
+    r'|(\d{1,2}):(\d{2})\.(\d+)\s*-->\s*(\d{1,2}):(\d{2})\.(\d+)'
+)
+
+
+def _tc_to_secs(parts: tuple) -> float:
+    if len(parts) == 4:
+        h, m, s, ms = parts
+        return int(h)*3600 + int(m)*60 + int(s) + int(ms)/(10**len(ms))
+    m, s, ms = parts
+    return int(m)*60 + int(s) + int(ms)/(10**len(ms))
+
+
+def _parse_vtt_text(text: str) -> list:
+    entries = []
+    for block in re.split(r'\n{2,}', text.strip()):
+        lines = [l.strip() for l in block.splitlines() if l.strip()]
+        tc_idx = next((i for i, l in enumerate(lines) if _TIMECODE_RE.match(l)), None)
+        if tc_idx is None:
+            continue
+        m = _TIMECODE_RE.match(lines[tc_idx])
+        if m.group(1) is not None:
+            start = _tc_to_secs((m.group(1), m.group(2), m.group(3), m.group(4)))
+            end   = _tc_to_secs((m.group(5), m.group(6), m.group(7), m.group(8)))
+        else:
+            start = _tc_to_secs((m.group(9),  m.group(10), m.group(11)))
+            end   = _tc_to_secs((m.group(12), m.group(13), m.group(14)))
+        text_lines = lines[tc_idx + 1:]
+        if text_lines:
+            entries.append({
+                'start':  start, 'end': end,
+                'lines':  text_lines,
+                'korean': [l for l in text_lines if _KOREAN_RE.search(l)],
+            })
+    return entries
+
+
+def _pair_korean(entries: list, lesson_path: str) -> list:
+    """Pair each Korean utterance with the nearest preceding English line."""
+    cards = []
+    for i, entry in enumerate(entries):
+        for ko_line in entry.get('korean', []):
+            trans = None
+            for j in range(i - 1, max(i - 4, -1), -1):
+                eng = [l for l in entries[j]['lines']
+                       if not _KOREAN_RE.search(l) and len(l.split()) >= 3]
+                if eng:
+                    trans = eng[0]
+                    break
+            cards.append({'word': ko_line, 'translation': trans,
+                          'start': entry['start'], 'end': entry['end']})
+    return cards
 
 
 class LangLabHandler(BaseHTTPRequestHandler):
@@ -106,12 +167,25 @@ class LangLabHandler(BaseHTTPRequestHandler):
         elif m := re.match(r'^/api/flashcards/due/(\d+)$', path):
             self._json(self.db.get_due_cards(int(m.group(1))))
 
+        elif path == '/api/admin/library':
+            self._json(self.db.get_library_stats())
+
         else:
             self._err(404, 'Unknown endpoint')
 
     # ── POST API ────────────────────────────────────────────────────────────
 
     def _api_post(self, path: str):
+        # Admin endpoints use multipart — don't pre-read the body as JSON
+        if path.startswith('/api/admin/'):
+            if path == '/api/admin/import-apkg':
+                self._handle_import_apkg()
+            elif path == '/api/admin/ingest-vtt':
+                self._handle_ingest_vtt()
+            else:
+                self._err(404, 'Unknown endpoint')
+            return
+
         body = self._read_body()
 
         if path == '/api/sessions':
@@ -126,6 +200,147 @@ class LangLabHandler(BaseHTTPRequestHandler):
 
         else:
             self._err(404, 'Unknown endpoint')
+
+    # ── admin: multipart helpers ─────────────────────────────────────────────
+
+    def _parse_multipart(self) -> dict:
+        ct     = self.headers.get('Content-Type', '')
+        length = int(self.headers.get('Content-Length', 0))
+        body   = self.rfile.read(length)
+        raw    = ('Content-Type: ' + ct + '\r\nMIME-Version: 1.0\r\n\r\n').encode() + body
+        msg    = email.message_from_bytes(raw)
+        result: dict = {}
+        for part in msg.walk():
+            if part.get_content_maintype() == 'multipart':
+                continue
+            name     = part.get_param('name',     header='content-disposition')
+            filename = part.get_param('filename', header='content-disposition')
+            if not name:
+                continue
+            data  = part.get_payload(decode=True) or b''
+            entry = {'filename': filename, 'data': data} if filename \
+                    else data.decode('utf-8', errors='replace')
+            if name in result:
+                if not isinstance(result[name], list):
+                    result[name] = [result[name]]
+                result[name].append(entry)
+            else:
+                result[name] = entry
+        return result
+
+    def _handle_import_apkg(self):
+        try:
+            parts     = self._parse_multipart()
+            user_id   = int(parts.get('user_id', 0))
+            language  = parts.get('language', 'korean')
+            dn_field  = parts.get('deck_name', '')
+            file_part = parts.get('file')
+            if not file_part or not user_id:
+                return self._err(400, 'Missing user_id or file')
+            deck_name = (dn_field.strip() if isinstance(dn_field, str) else '') \
+                        or Path(file_part['filename']).stem
+            with tempfile.NamedTemporaryFile(suffix='.apkg', delete=False) as f:
+                f.write(file_part['data'])
+                tmp = f.name
+            try:
+                result = self._run_apkg_import(tmp, user_id, language, deck_name)
+            finally:
+                os.unlink(tmp)
+            self._json(result)
+        except Exception as e:
+            self._err(500, str(e))
+
+    def _run_apkg_import(self, apkg_path: str, user_id: int,
+                         language: str, deck_name: str) -> dict:
+        import sqlite3 as _sq
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with zipfile.ZipFile(apkg_path) as z:
+                z.extractall(tmpdir)
+            db_file = next(
+                (os.path.join(tmpdir, n)
+                 for n in ('collection.anki21', 'collection.anki2')
+                 if os.path.exists(os.path.join(tmpdir, n))),
+                None,
+            )
+            if not db_file:
+                raise ValueError('No Anki collection found in .apkg')
+            anki  = _sq.connect(db_file)
+            anki.row_factory = _sq.Row
+            notes = anki.execute('SELECT flds FROM notes').fetchall()
+            anki.close()
+
+        def _clean(t: str) -> str:
+            t = re.sub(r'\[sound:[^\]]+\]', '', t)
+            t = re.sub(r'<[^>]+>', '', t)
+            return t.replace('&nbsp;', ' ').strip()
+
+        deck_id  = self.db.ensure_deck(user_id, deck_name, 'imported')
+        imported = skipped = 0
+        for note in notes:
+            fields = note['flds'].split('\x1f')
+            word  = _clean(fields[0]) if fields else ''
+            trans = _clean(fields[1]) if len(fields) > 1 else ''
+            if not word:
+                skipped += 1
+                continue
+            wid = self.db.upsert_word(language, word, trans or None,
+                                      'imported', deck_name, None)
+            self.db.ensure_user_vocab(user_id, wid)
+            self.db.add_word_to_deck(deck_id, wid)
+            imported += 1
+        return {'imported': imported, 'skipped': skipped, 'deck': deck_name}
+
+    def _handle_ingest_vtt(self):
+        try:
+            parts    = self._parse_multipart()
+            language = parts.get('language', 'korean')
+            user_id  = int(parts.get('user_id', 0))
+
+            files = parts.get('files', [])
+            if isinstance(files, dict):
+                files = [files]
+            if not isinstance(files, list):
+                files = []
+
+            vtts = {Path(f['filename']).stem: f
+                    for f in files if f['filename'].lower().endswith('.vtt')}
+            mp3s = {Path(f['filename']).stem: f
+                    for f in files if f['filename'].lower().endswith('.mp3')}
+
+            if not vtts:
+                return self._err(400, 'No VTT files provided')
+
+            lessons_added = words_added = 0
+            for stem, vtt_file in sorted(vtts.items()):
+                lesson_path = f'uploaded/{stem}'
+                text        = vtt_file['data'].decode('utf-8', errors='replace')
+                entries     = _parse_vtt_text(text)
+
+                mp3_rel = None
+                if stem in mp3s:
+                    mp3_dir = DATA_DIR / 'languages' / language / 'uploaded'
+                    mp3_dir.mkdir(parents=True, exist_ok=True)
+                    (mp3_dir / f'{stem}.mp3').write_bytes(mp3s[stem]['data'])
+                    mp3_rel = f'{language}/uploaded/{stem}.mp3'
+
+                self.db.upsert_lesson(language, lesson_path, stem, mp3_rel, entries)
+                lessons_added += 1
+
+                if user_id:
+                    cards   = _pair_korean(entries, lesson_path)
+                    deck_id = self.db.ensure_deck(user_id, stem, 'lesson')
+                    for card in cards:
+                        wid = self.db.upsert_word(
+                            language, card['word'], card['translation'],
+                            'pimsleur', lesson_path, None,
+                        )
+                        self.db.ensure_user_vocab(user_id, wid)
+                        self.db.add_word_to_deck(deck_id, wid)
+                        words_added += 1
+
+            self._json({'lessons': lessons_added, 'words': words_added})
+        except Exception as e:
+            self._err(500, str(e))
 
     # ── audio serving (with range request support for seeking) ──────────────
 

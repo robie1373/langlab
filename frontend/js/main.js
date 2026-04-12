@@ -10,6 +10,7 @@ import { initLesson, onLessonVisible } from './lesson.js';
 import { initTutor, onTutorVisible, releaseMic } from './tutor.js';
 import { initVocab } from './vocab.js';
 import { initProgress } from './progress.js';
+import { initAdmin } from './admin.js';
 import { loadApiKey } from './gemini.js';
 import { initSpeech } from './speech.js';
 
@@ -82,6 +83,8 @@ async function startSession(user) {
     if (user.default_lang === 'spanish' || true) initTutor(user);  // both users
     initVocab(user);
     initProgress(user);
+    const users = await fetchUsers();
+    initAdmin(users);
     initializedFor = user.id;
   }
 
@@ -104,6 +107,7 @@ function buildAppBar(user) {
     { id: 'view-flashcards', label: 'Flashcards', langs: ['korean', 'spanish'] },
     { id: 'view-vocab',      label: 'Vocab',      langs: ['korean', 'spanish'] },
     { id: 'view-progress',   label: 'Progress',   langs: ['korean', 'spanish'] },
+    { id: 'view-admin',      label: '⚙',          langs: ['korean', 'spanish'] },
   ].filter(v => v.langs.includes(user.default_lang));
 
   views.forEach(v => {

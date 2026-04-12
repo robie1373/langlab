@@ -380,6 +380,24 @@ class Database:
         self._conn.commit()
         return cur.lastrowid
 
+    def get_library_stats(self) -> dict:
+        rows = self._conn.execute(
+            "SELECT language, COUNT(*) as n FROM lessons GROUP BY language"
+        ).fetchall()
+        lessons = {r['language']: r['n'] for r in rows}
+        vocab = {}
+        for user in self.get_users():
+            n = self._conn.execute(
+                "SELECT COUNT(*) as n FROM user_vocab WHERE user_id=?",
+                (user['id'],)
+            ).fetchone()['n']
+            vocab[str(user['id'])] = {
+                'name': user['display_name'],
+                'language': user['default_lang'],
+                'count': n,
+            }
+        return {'lessons': lessons, 'vocab': vocab}
+
     def get_sessions(self, user_id: int, limit: int = 100) -> list[dict]:
         rows = self._conn.execute(
             "SELECT * FROM sessions WHERE user_id=? ORDER BY timestamp DESC LIMIT ?",

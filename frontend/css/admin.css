@@ -1,0 +1,165 @@
+/* ── Admin / Library view ──────────────────────────────────────────────── */
+
+.admin-shell {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+
+.admin-section h2 {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+/* Controls row */
+.admin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.admin-controls select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+/* Stat line */
+.admin-stat {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 0.85rem;
+  min-height: 1.2em;
+}
+
+/* Drop zone */
+.admin-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-drop-zone.drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+
+.drop-prompt {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.file-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.file-link input[type="file"] {
+  display: none;
+}
+
+.drop-filename {
+  font-size: 0.82rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+/* Optional deck name input */
+.admin-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.85rem;
+}
+
+.admin-label input[type="text"] {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.admin-label input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Action button */
+.admin-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.admin-btn:hover    { opacity: 0.85; }
+.admin-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* Log section */
+.admin-log-section { padding-bottom: 1rem; }
+
+.admin-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-family: monospace;
+}
+
+.log-line        { color: var(--muted); }
+.log-line.log-ok    { color: #4caf50; }
+.log-line.log-warn  { color: #f59e0b; }
+.log-line.log-error { color: #ef4444; }
+
+/* Mobile */
+@media (max-width: 640px) {
+  .admin-shell { padding: 1rem 0.75rem 5rem; }
+  .admin-controls { gap: 0.5rem 1rem; }
+}

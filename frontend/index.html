@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/css/lessons.css">
   <link rel="stylesheet" href="/css/tutor.css">
   <link rel="stylesheet" href="/css/vocab.css">
+  <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
 
@@ -231,6 +232,55 @@
     <div class="progress-view">
       <div class="progress-stats" id="progress-stats"></div>
       <div class="progress-sessions" id="progress-sessions"></div>
+    </div>
+  </div>
+
+  <!-- ── Admin / Library view ──────────────────────────────────────────── -->
+  <div id="view-admin" class="view">
+    <div class="admin-shell">
+
+      <section class="admin-section">
+        <h2>Vocab</h2>
+        <div class="admin-controls">
+          <label>User <select id="admin-vocab-user"></select></label>
+          <label>Language <select id="admin-vocab-lang">
+            <option value="korean">Korean</option>
+            <option value="spanish">Spanish</option>
+          </select></label>
+        </div>
+        <div class="admin-stat" id="admin-vocab-stat">—</div>
+        <div class="admin-drop-zone" id="admin-apkg-zone">
+          <span class="drop-prompt">Drop .apkg or <label class="file-link">browse<input type="file" id="admin-apkg-file" accept=".apkg"></label></span>
+          <span class="drop-filename" id="admin-apkg-name"></span>
+        </div>
+        <label class="admin-label">Deck name
+          <input type="text" id="admin-deck-name" placeholder="(from filename)">
+        </label>
+        <button class="admin-btn" id="admin-import-btn">Import Vocab</button>
+      </section>
+
+      <section class="admin-section">
+        <h2>Audio Library</h2>
+        <div class="admin-controls">
+          <label>Language <select id="admin-lesson-lang">
+            <option value="korean">Korean</option>
+            <option value="spanish">Spanish</option>
+          </select></label>
+          <label>Vocab for <select id="admin-lesson-user"></select></label>
+        </div>
+        <div class="admin-stat" id="admin-lesson-stat">—</div>
+        <div class="admin-drop-zone" id="admin-vtt-zone">
+          <span class="drop-prompt">Drop VTT + MP3 files or <label class="file-link">browse<input type="file" id="admin-vtt-files" accept=".vtt,.mp3" multiple></label></span>
+          <span class="drop-filename" id="admin-vtt-names"></span>
+        </div>
+        <button class="admin-btn" id="admin-ingest-btn">Ingest Lessons</button>
+      </section>
+
+      <section class="admin-section admin-log-section">
+        <h2>Log</h2>
+        <div class="admin-log" id="admin-log"><div class="log-line">Ready.</div></div>
+      </section>
+
     </div>
   </div>
 
