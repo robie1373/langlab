@@ -1,0 +1,195 @@
+/* ── PandR — Progress & Rewards ─────────────────────────────────────────── */
+
+/* ── Toast system ────────────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.6rem;
+  pointer-events: none;
+  max-width: min(340px, calc(100vw - 2rem));
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  animation: toast-in 0.3s ease, toast-out 0.4s ease 3.6s forwards;
+  pointer-events: auto;
+}
+
+.toast-icon  { font-size: 1.4rem; flex-shrink: 0; }
+.toast-body  { flex: 1; min-width: 0; }
+.toast-title { font-weight: 600; font-size: 0.85rem; color: var(--text); }
+.toast-desc  { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem; }
+
+/* Badge toasts get a subtle left-border accent */
+.toast.achievement { border-left: 3px solid var(--accent); }
+.toast.xp          { border-left: 3px solid #c8a000; }
+
+/* Rarity-coloured achievement toasts */
+.toast.fundamental { border-left: 3px solid #c8a000; }
+.toast.essential   { border-left: 3px solid #8b5cf6; }
+.toast.interesting { border-left: 3px solid #22c55e; }
+
+@keyframes toast-in  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+@keyframes toast-out { from { opacity:1; } to { opacity:0; pointer-events:none; } }
+
+/* ── Progress view ───────────────────────────────────────────────────────── */
+.progress-view {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ── Streak row ──────────────────────────────────────────────────────────── */
+.pr-streak-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pr-streak-card {
+  flex: 1;
+  min-width: 120px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.pr-streak-card.highlight { border-color: var(--accent); background: var(--active-bg); }
+
+.pr-sc-number {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pr-sc-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pr-sc-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+/* ── Heat map ────────────────────────────────────────────────────────────── */
+.pr-heatmap-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.pr-heatmap-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.pr-heatmap {
+  display: flex;
+  gap: 3px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.pr-hm-week { display: flex; flex-direction: column; gap: 3px; }
+
+.pr-hm-day {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.pr-hm-day[data-count="0"] { background: var(--border); opacity: 0.5; }
+.pr-hm-day[data-count="1"] { background: #4a9040; opacity: 0.7; }
+.pr-hm-day[data-count="2"] { background: #3a7a30; opacity: 0.85; }
+.pr-hm-day[data-count="3"] { background: #2a6020; }
+.pr-hm-day[data-count="4"] { background: #1a4a10; }
+
+body.dark .pr-hm-day[data-count="1"] { background: #5ab050; opacity: 0.7; }
+body.dark .pr-hm-day[data-count="2"] { background: #6aca60; opacity: 0.85; }
+body.dark .pr-hm-day[data-count="3"] { background: #7ada70; }
+body.dark .pr-hm-day[data-count="4"] { background: #8aea80; }
+
+/* ── Badge grid ──────────────────────────────────────────────────────────── */
+.pr-badges-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.pr-badge-group-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 1rem 0 0.5rem;
+}
+.pr-badge-group-title:first-of-type { margin-top: 0; }
+
+.pr-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.pr-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  transition: box-shadow 0.15s;
+}
+
+.pr-badge.earned {
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--text);
+}
+
+.pr-badge.unearned {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.pr-badge .badge-icon { font-size: 1rem; }
+.pr-badge .badge-name { font-weight: 500; }
+
+/* XP display in streak row */
+.pr-xp-label { font-size: 0.75rem; color: #c8a000; font-weight: 600; }
+
+/* ── Rarity colours (for flashcard borders etc) ──────────────────────────── */
+:root {
+  --rarity-fundamental: #c8a000;
+  --rarity-essential:   #8b5cf6;
+  --rarity-interesting: #22c55e;
+  --rarity-niche:       #888;
+}

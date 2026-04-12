@@ -5,6 +5,8 @@
  */
 
 import { showToast } from './ui.js';
+import { showMastered } from './toast.js';
+import { checkAchievements } from './progress.js';
 
 let user        = null;
 let queue       = [];
@@ -122,7 +124,7 @@ async function rateCard(rating) {
 
   results.push({ rating });
 
-  fetch('/api/flashcards/review', {
+  const reviewRes = await fetch('/api/flashcards/review', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({
@@ -133,6 +135,13 @@ async function rateCard(rating) {
       time_ms:    timeMs,
     }),
   });
+  const reviewData = await reviewRes.json();
+  if (reviewData.just_mastered) {
+    showMastered(card.word, reviewData.rarity);
+  }
+
+  // Check for newly earned achievements after every review (fire-and-forget)
+  checkAchievements(user.id);
 
   current++;
   if (current >= queue.length) {

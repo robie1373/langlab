@@ -181,6 +181,19 @@ class LangLabHandler(BaseHTTPRequestHandler):
         elif path == '/api/admin/library':
             self._json(self.db.get_library_stats())
 
+        elif m := re.match(r'^/api/progress/(\d+)$', path):
+            self._json(self.db.get_progress(int(m.group(1))))
+
+        elif m := re.match(r'^/api/achievements/(\d+)$', path):
+            from achievements import BADGE_DEFS, BADGE_BY_KEY, BADGE_GROUPS, GROUP_LABELS
+            earned = {r['badge_key'] for r in self.db.get_achievements(int(m.group(1)))}
+            self._json({
+                'earned':       list(earned),
+                'badge_defs':   BADGE_DEFS,
+                'badge_groups': BADGE_GROUPS,
+                'group_labels': GROUP_LABELS,
+            })
+
         else:
             self._err(404, 'Unknown endpoint')
 
@@ -208,6 +221,10 @@ class LangLabHandler(BaseHTTPRequestHandler):
 
         elif path == '/api/flashcards/review':
             self._json(self.db.review_card(body))
+
+        elif m := re.match(r'^/api/achievements/check/(\d+)$', path):
+            newly_earned = self.db.check_and_award(int(m.group(1)))
+            self._json({'awarded': newly_earned})
 
         else:
             self._err(404, 'Unknown endpoint')

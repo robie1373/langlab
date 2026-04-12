@@ -5,11 +5,12 @@ SQLite via the stdlib sqlite3 module — no external dependencies.
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 import fsrs
+from achievements import BADGE_BY_KEY, XP_REVIEW, XP_MASTERED_BASE, XP_MASTERED_RARITY, XP_SESSION, XP_STREAK_BONUS
 
 
 SCHEMA = """
@@ -98,11 +99,61 @@ CREATE TABLE IF NOT EXISTS lessons (
     UNIQUE(language, lesson_path)
 );
 
+-- ── PandR tables ───────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS achievements (
+    id         INTEGER PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    badge_key  TEXT    NOT NULL,
+    earned_at  TEXT    NOT NULL,
+    UNIQUE(user_id, badge_key)
+);
+
+CREATE TABLE IF NOT EXISTS xp_events (
+    id        INTEGER PRIMARY KEY,
+    user_id   INTEGER NOT NULL REFERENCES users(id),
+    points    INTEGER NOT NULL,
+    source    TEXT    NOT NULL,  -- 'flashcard_review','card_mastered','session','daily_goal','streak_bonus'
+    meta      TEXT,              -- JSON: e.g. {"rating":3} or {"rarity":"legendary","word":"안녕"}
+    timestamp TEXT    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS streak_chapters (
+    id         INTEGER PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    start_date TEXT    NOT NULL,
+    end_date   TEXT    NOT NULL,
+    length     INTEGER NOT NULL,
+    was_best   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS user_goals (
+    user_id         INTEGER PRIMARY KEY REFERENCES users(id),
+    daily_cards     INTEGER NOT NULL DEFAULT 20,
+    show_leaderboard INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS jackpot_state (
+    user_id               INTEGER PRIMARY KEY REFERENCES users(id),
+    sessions_since_jackpot INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS cefr_designations (
+    id         INTEGER PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    language   TEXT    NOT NULL,
+    level      TEXT    NOT NULL,
+    score      INTEGER,
+    earned_at  TEXT    NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_user_vocab_user   ON user_vocab(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_vocab_due    ON user_vocab(user_id, due_at);
 CREATE INDEX IF NOT EXISTS idx_reviews_user      ON reviews(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user     ON sessions(user_id, timestamp);
 CREATE INDEX IF NOT EXISTS idx_lessons_lang      ON lessons(language);
+CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_xp_user           ON xp_events(user_id, timestamp);
 """
 
 SEED_USERS = [
@@ -126,7 +177,17 @@ class Database:
         self._conn = sqlite3.connect(path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
+        self._migrate()
         self._seed()
+
+    def _migrate(self):
+        """Idempotent schema migrations for columns that can't use IF NOT EXISTS."""
+        existing = {r[1] for r in self._conn.execute("PRAGMA table_info(words)").fetchall()}
+        if 'rarity' not in existing:
+            self._conn.execute("ALTER TABLE words ADD COLUMN rarity TEXT DEFAULT 'niche'")
+        if 'frequency_rank' not in existing:
+            self._conn.execute("ALTER TABLE words ADD COLUMN frequency_rank INTEGER")
+        self._conn.commit()
 
     def _seed(self):
         for name, display, lang in SEED_USERS:
@@ -332,6 +393,8 @@ class Database:
 
         card = fsrs.Card.from_row(_row_to_dict(row))
         stability_before = card.stability
+        prev_state       = card.state
+        prev_stability   = card.stability
         updated, scheduled_secs = fsrs.review(card, rating)
 
         self._conn.execute(
@@ -355,13 +418,35 @@ class Database:
         )
         self._conn.commit()
 
-        return {
+        # XP for this review
+        xp = XP_REVIEW.get(rating, 100)
+        self.log_xp(user_id, xp, 'flashcard_review', {'rating': rating})
+
+        # Bonus XP if this review pushed the card to "mastered" state
+        just_mastered = (
+            updated.state == 2 and updated.stability >= 21 and updated.reps >= 3
+            and not (prev_state == 2 and prev_stability >= 21)
+        )
+        if just_mastered:
+            rarity_row = self._conn.execute(
+                "SELECT rarity FROM words WHERE id=?", (word_id,)
+            ).fetchone()
+            rarity = rarity_row['rarity'] if rarity_row else 'niche'
+            bonus  = XP_MASTERED_RARITY.get(rarity, XP_MASTERED_BASE)
+            self.log_xp(user_id, XP_MASTERED_BASE + bonus, 'card_mastered',
+                        {'rarity': rarity, 'word_id': word_id})
+
+        result = {
             'word_id':        word_id,
             'state':          updated.state,
             'due_at':         updated.due_at,
             'scheduled_days': updated.scheduled_days,
             'reps':           updated.reps,
         }
+        if just_mastered:
+            result['just_mastered'] = True
+            result['rarity']        = rarity
+        return result
 
     # ── sessions ────────────────────────────────────────────────────────────
 
@@ -379,7 +464,14 @@ class Database:
             )
         )
         self._conn.commit()
-        return cur.lastrowid
+        session_id = cur.lastrowid
+
+        # XP for completing a session
+        session_type = body['session_type']
+        xp = XP_SESSION.get(session_type, 100)
+        self.log_xp(int(body['user_id']), xp, 'session', {'session_type': session_type})
+
+        return session_id
 
     def get_library_stats(self) -> dict:
         rows = self._conn.execute(
@@ -403,5 +495,298 @@ class Database:
         rows = self._conn.execute(
             "SELECT * FROM sessions WHERE user_id=? ORDER BY timestamp DESC LIMIT ?",
             (user_id, limit)
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+    # ── PandR: progress ──────────────────────────────────────────────────────
+
+    def get_progress(self, user_id: int) -> dict:
+        """Streak, total days, heat map for the progress view."""
+        rows = self._conn.execute(
+            """SELECT DISTINCT date(timestamp) as day
+               FROM sessions WHERE user_id=?
+               ORDER BY day DESC""",
+            (user_id,)
+        ).fetchall()
+
+        day_strs  = [r['day'] for r in rows]
+        total_days = len(day_strs)
+
+        if not day_strs:
+            heatmap = {}
+            streak = best_streak = 0
+        else:
+            today     = date.today()
+            day_dates = [date.fromisoformat(d) for d in day_strs]
+            day_set   = set(day_dates)
+
+            # Current streak — counts back from today or yesterday
+            streak  = 0
+            check   = today
+            if check not in day_set:
+                check = today - timedelta(days=1)
+            while check in day_set:
+                streak += 1
+                check  -= timedelta(days=1)
+
+            # Best streak — full scan
+            best_streak = run = 0
+            prev = None
+            for d in sorted(day_dates):
+                if prev is None or (d - prev).days == 1:
+                    run += 1
+                else:
+                    best_streak = max(best_streak, run)
+                    run = 1
+                prev = d
+            best_streak = max(best_streak, run)
+
+            # Heat map: last 365 days — {YYYY-MM-DD: session_count}
+            hm_rows = self._conn.execute(
+                """SELECT date(timestamp) as day, COUNT(*) as n
+                   FROM sessions
+                   WHERE user_id=? AND date(timestamp) >= date('now', '-365 days')
+                   GROUP BY day""",
+                (user_id,)
+            ).fetchall()
+            heatmap = {r['day']: r['n'] for r in hm_rows}
+
+        # XP total
+        xp_row = self._conn.execute(
+            "SELECT COALESCE(SUM(points),0) as total FROM xp_events WHERE user_id=?",
+            (user_id,)
+        ).fetchone()
+
+        return {
+            'streak':      streak,
+            'best_streak': best_streak,
+            'total_days':  total_days,
+            'heatmap':     heatmap,
+            'xp_total':    xp_row['total'],
+        }
+
+    # ── PandR: XP ────────────────────────────────────────────────────────────
+
+    def log_xp(self, user_id: int, points: int, source: str, meta: dict = None) -> None:
+        self._conn.execute(
+            "INSERT INTO xp_events (user_id, points, source, meta, timestamp) VALUES (?,?,?,?,?)",
+            (user_id, points, source, json.dumps(meta) if meta else None, _now_iso())
+        )
+        self._conn.commit()
+
+    # ── PandR: achievements ──────────────────────────────────────────────────
+
+    def get_achievements(self, user_id: int) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT badge_key, earned_at FROM achievements WHERE user_id=? ORDER BY earned_at",
+            (user_id,)
+        ).fetchall()
+        return [_row_to_dict(r) for r in rows]
+
+    def _award(self, user_id: int, key: str) -> bool:
+        """Insert an achievement row; return True if newly awarded."""
+        try:
+            self._conn.execute(
+                "INSERT INTO achievements (user_id, badge_key, earned_at) VALUES (?,?,?)",
+                (user_id, key, _now_iso())
+            )
+            self._conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False  # already earned
+
+    def check_and_award(self, user_id: int) -> list[dict]:
+        """
+        Check all achievement conditions and award any newly earned badges.
+        Returns list of badge dicts for badges awarded this call (for real-time toasts).
+        """
+        newly_earned = []
+
+        def award(key: str):
+            if self._award(user_id, key) and key in BADGE_BY_KEY:
+                newly_earned.append(BADGE_BY_KEY[key])
+
+        # ── gather stats ────────────────────────────────────────────────────
+        progress = self.get_progress(user_id)
+        streak      = progress['streak']
+        best_streak = progress['best_streak']
+        total_days  = progress['total_days']
+
+        review_count = self._conn.execute(
+            "SELECT COUNT(*) as n FROM reviews WHERE user_id=?", (user_id,)
+        ).fetchone()['n']
+
+        mastered_count = self._conn.execute(
+            """SELECT COUNT(*) as n FROM user_vocab
+               WHERE user_id=? AND state=2 AND stability>=21 AND reps>=3""",
+            (user_id,)
+        ).fetchone()['n']
+
+        session_types_this_week = {
+            r['session_type'] for r in self._conn.execute(
+                """SELECT DISTINCT session_type FROM sessions
+                   WHERE user_id=? AND date(timestamp) >= date('now', '-7 days')""",
+                (user_id,)
+            ).fetchall()
+        }
+
+        first_session = self._conn.execute(
+            "SELECT session_type FROM sessions WHERE user_id=? ORDER BY timestamp LIMIT 1",
+            (user_id,)
+        ).fetchone()
+
+        # Days since last session before the most recent one (for comeback)
+        gap_row = self._conn.execute(
+            """SELECT julianday(s1.timestamp) - julianday(s2.timestamp) as gap
+               FROM sessions s1
+               JOIN sessions s2 ON s2.id = (
+                   SELECT id FROM sessions
+                   WHERE user_id=? AND id < s1.id
+                   ORDER BY id DESC LIMIT 1
+               )
+               WHERE s1.user_id=?
+               ORDER BY s1.timestamp DESC LIMIT 1""",
+            (user_id, user_id)
+        ).fetchone()
+        gap_days = gap_row['gap'] if gap_row else 0
+
+        # ── first steps ────────────────────────────────────────────────────
+        if review_count >= 1:
+            award('first_review')
+
+        if first_session:
+            st = first_session['session_type']
+            if st in ('pimsleur', 'ai_lesson', 'free'):
+                award('first_lesson')
+            elif st == 'tutor':
+                award('first_tutor')
+            elif st == 'ai_lesson':
+                award('first_ai')
+
+        # Check each session type independently
+        for row in self._conn.execute(
+            "SELECT DISTINCT session_type FROM sessions WHERE user_id=?", (user_id,)
+        ).fetchall():
+            st = row['session_type']
+            if st in ('pimsleur', 'free'):
+                award('first_lesson')
+            elif st == 'tutor':
+                award('first_tutor')
+            elif st == 'ai_lesson':
+                award('first_ai')
+
+        if review_count >= 1:
+            award('first_review')
+
+        # ── streak milestones ──────────────────────────────────────────────
+        for threshold, key in [(3,'streak_3'),(7,'streak_7'),(14,'streak_14'),
+                               (30,'streak_30'),(60,'streak_60'),(100,'streak_100')]:
+            if streak >= threshold:
+                award(key)
+
+        # ── new game+ / chapters ───────────────────────────────────────────
+        chapter_count = self._conn.execute(
+            "SELECT COUNT(*) as n FROM streak_chapters WHERE user_id=?", (user_id,)
+        ).fetchone()['n']
+        if chapter_count >= 1:
+            award('new_chapter')
+
+        # surpassed_best: current streak > all completed chapters
+        if best_streak > 0 and streak > best_streak:
+            award('surpassed_best')
+
+        # comeback: returned after 7+ day gap
+        if gap_days >= 7:
+            award('comeback')
+
+        # ── lifetime days ──────────────────────────────────────────────────
+        for threshold, key in [(7,'days_7'),(30,'days_30'),(100,'days_100'),(365,'days_365')]:
+            if total_days >= threshold:
+                award(key)
+
+        # ── review volume ──────────────────────────────────────────────────
+        for threshold, key in [(10,'reviews_10'),(50,'reviews_50'),(100,'reviews_100'),
+                               (500,'reviews_500'),(1000,'reviews_1000')]:
+            if review_count >= threshold:
+                award(key)
+
+        # ── mastery ────────────────────────────────────────────────────────
+        for threshold, key in [(10,'mastered_10'),(50,'mastered_50'),
+                               (100,'mastered_100'),(500,'mastered_500')]:
+            if mastered_count >= threshold:
+                award(key)
+
+        # ── multi-modal ────────────────────────────────────────────────────
+        all_types = {'pimsleur', 'flashcard', 'ai_lesson', 'tutor', 'free'}
+        if all_types.issubset(session_types_this_week):
+            award('multimodal')
+
+        # ── streak XP bonuses ──────────────────────────────────────────────
+        for threshold, xp in XP_STREAK_BONUS.items():
+            if streak == threshold:  # exactly on milestone day — award once
+                if not self._conn.execute(
+                    "SELECT 1 FROM xp_events WHERE user_id=? AND source=? AND meta LIKE ?",
+                    (user_id, 'streak_bonus', f'%"streak":{threshold}%')
+                ).fetchone():
+                    self.log_xp(user_id, xp, 'streak_bonus', {'streak': threshold})
+
+        return newly_earned
+
+    def close_streak_chapter(self, user_id: int) -> None:
+        """
+        Called when a streak is broken (detected at session-log time).
+        Records the completed streak chapter for the Streak Chronicle.
+        """
+        progress = self.get_progress(user_id)
+        # The streak before today — look at yesterday's count
+        rows = self._conn.execute(
+            """SELECT DISTINCT date(timestamp) as day
+               FROM sessions WHERE user_id=?
+               ORDER BY day DESC""",
+            (user_id,)
+        ).fetchall()
+        if len(rows) < 2:
+            return
+
+        day_dates = [date.fromisoformat(r['day']) for r in rows]
+        # Find the most recent run that ended before today
+        today = date.today()
+        run_end = None
+        run_len = 0
+        prev = None
+        for d in sorted(day_dates, reverse=True):
+            if d >= today:
+                continue
+            if prev is None:
+                run_end = d
+                run_len = 1
+            elif (prev - d).days == 1:
+                run_len += 1
+            else:
+                break
+            prev = d
+
+        if run_len < 1 or run_end is None:
+            return
+
+        run_start = run_end - timedelta(days=run_len - 1)
+        best_before = self._conn.execute(
+            "SELECT COALESCE(MAX(length),0) as best FROM streak_chapters WHERE user_id=?",
+            (user_id,)
+        ).fetchone()['best']
+
+        self._conn.execute(
+            """INSERT OR IGNORE INTO streak_chapters
+               (user_id, start_date, end_date, length, was_best)
+               VALUES (?,?,?,?,?)""",
+            (user_id, run_start.isoformat(), run_end.isoformat(),
+             run_len, 1 if run_len > best_before else 0)
+        )
+        self._conn.commit()
+
+    def get_streak_chapters(self, user_id: int) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM streak_chapters WHERE user_id=? ORDER BY start_date DESC",
+            (user_id,)
         ).fetchall()
         return [_row_to_dict(r) for r in rows]

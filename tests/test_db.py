@@ -5,8 +5,9 @@ All tests use an in-memory SQLite database so they are
 isolated, fast, and leave no files on disk.
 """
 
-import sys, unittest
+import sys, unittest, json
 from pathlib import Path
+from datetime import date
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from db import Database
@@ -387,6 +388,146 @@ class TestLibraryStats(unittest.TestCase):
         stats = db.get_library_stats()
         self.assertEqual(stats['vocab'][str(robie_id)]['count'], 1)
         self.assertEqual(stats['vocab'][str(anna_id)]['count'],  0)
+
+
+class TestPandR(unittest.TestCase):
+    def setUp(self):
+        self.db = make_db()
+        self.user_id = self.db.get_users()[0]['id']  # robie
+        self.word_id = self.db.upsert_word('korean', '환영', 'welcome', 'pimsleur', None, None)
+        self.db.ensure_user_vocab(self.user_id, self.word_id)
+
+    def test_get_progress_new_user_zero_streak_and_days(self):
+        """New user with no sessions shows zero streak and zero total_days."""
+        progress = self.db.get_progress(self.user_id)
+        self.assertEqual(progress['streak'], 0)
+        self.assertEqual(progress['best_streak'], 0)
+        self.assertEqual(progress['total_days'], 0)
+        self.assertEqual(progress['heatmap'], {})
+        self.assertEqual(progress['xp_total'], 0)
+
+    def test_get_progress_after_one_session_shows_streak_and_day(self):
+        """After logging one session, streak=1 and total_days=1."""
+        self.db.log_session({
+            'user_id': self.user_id,
+            'language': 'korean',
+            'session_type': 'pimsleur',
+        })
+        progress = self.db.get_progress(self.user_id)
+        self.assertEqual(progress['streak'], 1)
+        self.assertEqual(progress['total_days'], 1)
+        self.assertIsInstance(progress['heatmap'], dict)
+
+    def test_get_progress_xp_total_appears_in_response(self):
+        """get_progress() response includes xp_total key."""
+        self.db.log_xp(self.user_id, 250, 'test_source', {'test': True})
+        progress = self.db.get_progress(self.user_id)
+        self.assertIn('xp_total', progress)
+        self.assertEqual(progress['xp_total'], 250)
+
+    def test_get_achievements_empty_for_new_user(self):
+        """New user has no achievements."""
+        achievements = self.db.get_achievements(self.user_id)
+        self.assertEqual(achievements, [])
+
+    def test_check_and_award_returns_newly_earned_badges(self):
+        """check_and_award() returns list of badge dicts for newly earned badges."""
+        # Log a review to earn 'first_review' badge
+        self.db.review_card({
+            'user_id': self.user_id,
+            'word_id': self.word_id,
+            'rating': GOOD,
+        })
+        newly_earned = self.db.check_and_award(self.user_id)
+        self.assertIsInstance(newly_earned, list)
+        self.assertGreater(len(newly_earned), 0)
+        # Should include 'first_review' badge
+        badge_keys = [b['key'] for b in newly_earned]
+        self.assertIn('first_review', badge_keys)
+
+    def test_check_and_award_idempotent(self):
+        """Calling check_and_award() twice does not re-award badges."""
+        # Log a review to earn 'first_review'
+        self.db.review_card({
+            'user_id': self.user_id,
+            'word_id': self.word_id,
+            'rating': GOOD,
+        })
+        newly_earned_1 = self.db.check_and_award(self.user_id)
+        newly_earned_2 = self.db.check_and_award(self.user_id)
+        # First call should award badges; second should not
+        self.assertGreater(len(newly_earned_1), 0)
+        self.assertEqual(len(newly_earned_2), 0)
+
+    def test_check_and_award_first_review_badge(self):
+        """After first review, 'first_review' badge should be awarded."""
+        self.db.review_card({
+            'user_id': self.user_id,
+            'word_id': self.word_id,
+            'rating': GOOD,
+        })
+        newly_earned = self.db.check_and_award(self.user_id)
+        badge_keys = [b['key'] for b in newly_earned]
+        self.assertIn('first_review', badge_keys)
+        # Verify it's also in the achievements table
+        achievements = self.db.get_achievements(self.user_id)
+        earned_keys = [a['badge_key'] for a in achievements]
+        self.assertIn('first_review', earned_keys)
+
+    def test_log_xp_adds_points(self):
+        """log_xp() logs XP events to the database."""
+        self.db.log_xp(self.user_id, 100, 'test_source', {'test': 'data'})
+        self.db.log_xp(self.user_id, 50, 'another_source', None)
+        # Verify via xp_events table
+        rows = self.db._conn.execute(
+            "SELECT SUM(points) as total FROM xp_events WHERE user_id=?",
+            (self.user_id,)
+        ).fetchone()
+        self.assertEqual(rows['total'], 150)
+
+    def test_log_xp_appears_in_get_progress(self):
+        """XP logged via log_xp() appears in get_progress() xp_total."""
+        self.db.log_xp(self.user_id, 300, 'session', {})
+        self.db.log_xp(self.user_id, 200, 'review', {})
+        progress = self.db.get_progress(self.user_id)
+        self.assertEqual(progress['xp_total'], 500)
+
+    def test_log_xp_with_meta_stores_json(self):
+        """log_xp() stores meta dict as JSON string."""
+        meta = {'rarity': 'legendary', 'word_id': 123}
+        self.db.log_xp(self.user_id, 500, 'card_mastered', meta)
+        row = self.db._conn.execute(
+            "SELECT meta FROM xp_events WHERE user_id=? AND source=?",
+            (self.user_id, 'card_mastered')
+        ).fetchone()
+        self.assertIsNotNone(row['meta'])
+        # Verify it's valid JSON
+        stored_meta = json.loads(row['meta'])
+        self.assertEqual(stored_meta['rarity'], 'legendary')
+        self.assertEqual(stored_meta['word_id'], 123)
+
+    def test_get_progress_heatmap_includes_session_dates(self):
+        """get_progress() heatmap includes session dates within 365 days."""
+        self.db.log_session({
+            'user_id': self.user_id,
+            'language': 'korean',
+            'session_type': 'pimsleur',
+        })
+        progress = self.db.get_progress(self.user_id)
+        today = date.today().isoformat()
+        self.assertIn(today, progress['heatmap'])
+        self.assertGreaterEqual(progress['heatmap'][today], 1)
+
+    def test_check_and_award_first_lesson_badge(self):
+        """After logging a lesson session, 'first_lesson' badge should be awarded."""
+        self.db.log_session({
+            'user_id': self.user_id,
+            'language': 'korean',
+            'session_type': 'pimsleur',
+        })
+        newly_earned = self.db.check_and_award(self.user_id)
+        badge_keys = [b['key'] for b in newly_earned]
+        self.assertIn('first_lesson', badge_keys)
 
 
 if __name__ == '__main__':

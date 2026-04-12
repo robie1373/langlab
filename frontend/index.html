@@ -10,8 +10,12 @@
   <link rel="stylesheet" href="/css/tutor.css">
   <link rel="stylesheet" href="/css/vocab.css">
   <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/pandr.css">
 </head>
 <body>
+
+<!-- ── Toast container ───────────────────────────────────────────────── -->
+<div id="toast-container" aria-live="polite"></div>
 
 <!-- ── User picker ────────────────────────────────────────────────────── -->
 <div id="view-picker" class="view">
@@ -231,6 +235,9 @@
   <!-- ── Progress view ─────────────────────────────────────────────────── -->
   <div id="view-progress" class="view">
     <div class="progress-view">
+      <div class="pr-streak-row" id="pr-streak-row"></div>
+      <div class="pr-heatmap-wrap" id="pr-heatmap-wrap"></div>
+      <div class="pr-badges-wrap" id="pr-badges-wrap"></div>
       <div class="progress-stats" id="progress-stats"></div>
       <div class="progress-sessions" id="progress-sessions"></div>
     </div>
