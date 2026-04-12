@@ -22,7 +22,9 @@ Usage:
 """
 
 import argparse
+import glob
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -335,8 +337,15 @@ def main():
         print(f'Unit directory not found: {unit_dir}')
         sys.exit(1)
 
+    # Resolve ffmpeg — check PATH first, then Nix store
     if not shutil.which('ffmpeg') and not args.dry_run:
-        print('ffmpeg not found in PATH — audio clips will be skipped')
+        nix_candidates = sorted(glob.glob('/nix/store/*ffmpeg*/bin/ffmpeg'))
+        if nix_candidates:
+            ffmpeg_bin = nix_candidates[-1]
+            os.environ['PATH'] = os.path.dirname(ffmpeg_bin) + ':' + os.environ.get('PATH', '')
+            print(f'ffmpeg found via Nix store: {ffmpeg_bin}')
+        else:
+            print('ffmpeg not found in PATH — audio clips will be skipped')
 
     db_path = Path(args.db).expanduser().resolve()
     qc_log  = Path(args.qc_log).expanduser() if args.qc_log else unit_dir / 'ingest-qc.json'
