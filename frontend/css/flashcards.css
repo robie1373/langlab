@@ -146,6 +146,18 @@ body.dark {
   text-align: right;
 }
 
+.fc-end-btn {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fc-end-btn:hover { color: var(--text); border-color: var(--text-muted); }
+
 /* card stage */
 .fc-stage {
   flex: 1;

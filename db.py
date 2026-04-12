@@ -308,7 +308,8 @@ class Database:
                       uv.elapsed_days, uv.scheduled_days, uv.due_at, uv.last_review
                FROM user_vocab uv JOIN words w ON w.id = uv.word_id
                WHERE uv.user_id=? AND (uv.due_at IS NULL OR uv.due_at <= ?)
-               ORDER BY uv.due_at ASC NULLS FIRST
+               ORDER BY CASE WHEN uv.due_at IS NULL THEN 1 ELSE 0 END,
+                        CASE WHEN uv.due_at IS NULL THEN RANDOM() ELSE uv.due_at END
                LIMIT ?""",
             (user_id, now, limit)
         ).fetchall()

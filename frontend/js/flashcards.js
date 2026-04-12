@@ -176,6 +176,11 @@ function bindButtons() {
     btn.addEventListener('click', () => rateCard(+btn.dataset.r));
   });
 
+  document.getElementById('fc-end-btn').addEventListener('click', () => {
+    if (results.length > 0) showDone();
+    else renderQueue();
+  });
+
   document.getElementById('fc-done-again').addEventListener('click', async () => {
     await refresh();
     if (queue.length) startReview();
@@ -198,6 +203,13 @@ function onKey(ev) {
   const flipped = card?.classList.contains('flipped');
   const tag     = ev.target.tagName;
   if (['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
+
+  if (ev.key === 'Escape') {
+    ev.preventDefault();
+    if (results.length > 0) showDone();
+    else renderQueue();
+    return;
+  }
 
   if (!flipped && ev.key === ' ') {
     ev.preventDefault();
