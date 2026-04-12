@@ -321,5 +321,73 @@ class TestFlashcardReview(unittest.TestCase):
         self.assertEqual(r2['state'], LEARNING)
 
 
+class TestLibraryStats(unittest.TestCase):
+    def test_empty_db_has_no_lessons(self):
+        db = make_db()
+        stats = db.get_library_stats()
+        self.assertEqual(stats['lessons'], {})
+
+    def test_lesson_counted_by_language(self):
+        db = make_db()
+        db.upsert_lesson('korean', 'pimsleur/unit-1/lesson-01', 'Lesson 01', None, [])
+        stats = db.get_library_stats()
+        self.assertEqual(stats['lessons']['korean'], 1)
+
+    def test_multi_lesson_multi_language_counts(self):
+        db = make_db()
+        db.upsert_lesson('korean',  'pimsleur/unit-1/lesson-01', 'L01', None, [])
+        db.upsert_lesson('korean',  'pimsleur/unit-1/lesson-02', 'L02', None, [])
+        db.upsert_lesson('spanish', 'lt/lesson-01',              'S01', None, [])
+        stats = db.get_library_stats()
+        self.assertEqual(stats['lessons']['korean'],  2)
+        self.assertEqual(stats['lessons']['spanish'], 1)
+
+    def test_upsert_does_not_double_count(self):
+        db = make_db()
+        db.upsert_lesson('korean', 'pimsleur/unit-1/lesson-01', 'L01', None, [])
+        db.upsert_lesson('korean', 'pimsleur/unit-1/lesson-01', 'L01', None, [])  # re-upsert
+        stats = db.get_library_stats()
+        self.assertEqual(stats['lessons']['korean'], 1)
+
+    def test_vocab_key_present_for_all_users(self):
+        db = make_db()
+        stats = db.get_library_stats()
+        for user in db.get_users():
+            self.assertIn(str(user['id']), stats['vocab'])
+
+    def test_vocab_count_zero_for_new_user(self):
+        db = make_db()
+        stats = db.get_library_stats()
+        for entry in stats['vocab'].values():
+            self.assertEqual(entry['count'], 0)
+
+    def test_vocab_count_increments(self):
+        db = make_db()
+        user_id = db.get_users()[0]['id']
+        wid = db.upsert_word('korean', '안녕', 'hello', 'pimsleur', None, None)
+        db.ensure_user_vocab(user_id, wid)
+        stats = db.get_library_stats()
+        self.assertEqual(stats['vocab'][str(user_id)]['count'], 1)
+
+    def test_vocab_structure_has_required_fields(self):
+        db = make_db()
+        stats = db.get_library_stats()
+        for entry in stats['vocab'].values():
+            self.assertIn('name',     entry)
+            self.assertIn('count',    entry)
+            self.assertIn('language', entry)
+
+    def test_vocab_isolated_per_user(self):
+        db = make_db()
+        users = db.get_users()
+        robie_id = next(u['id'] for u in users if u['name'] == 'robie')
+        anna_id  = next(u['id'] for u in users if u['name'] == 'anna')
+        wid = db.upsert_word('korean', '안녕', 'hello', 'pimsleur', None, None)
+        db.ensure_user_vocab(robie_id, wid)
+        stats = db.get_library_stats()
+        self.assertEqual(stats['vocab'][str(robie_id)]['count'], 1)
+        self.assertEqual(stats['vocab'][str(anna_id)]['count'],  0)
+
+
 if __name__ == '__main__':
     unittest.main()

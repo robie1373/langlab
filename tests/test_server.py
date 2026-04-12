@@ -274,5 +274,51 @@ class TestUnknownEndpoints(unittest.TestCase):
         self.assertEqual(status, 404)
 
 
+class TestAdminLibraryEndpoint(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server, cls.base = _start_server()
+        db = cls.server.RequestHandlerClass.db
+        db.upsert_lesson('korean',  'pimsleur/unit-1/lesson-01', 'Lesson 01', None, [])
+        db.upsert_lesson('korean',  'pimsleur/unit-1/lesson-02', 'Lesson 02', None, [])
+        db.upsert_lesson('spanish', 'lt/lesson-01', 'S01', None, [])
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+
+    def test_library_200(self):
+        status, _ = _get(f'{self.base}/api/admin/library')
+        self.assertEqual(status, 200)
+
+    def test_library_has_lessons_key(self):
+        _, data = _get(f'{self.base}/api/admin/library')
+        self.assertIn('lessons', data)
+
+    def test_library_has_vocab_key(self):
+        _, data = _get(f'{self.base}/api/admin/library')
+        self.assertIn('vocab', data)
+
+    def test_library_lesson_counts_correct(self):
+        _, data = _get(f'{self.base}/api/admin/library')
+        self.assertEqual(data['lessons']['korean'],  2)
+        self.assertEqual(data['lessons']['spanish'], 1)
+
+    def test_library_vocab_entry_per_user(self):
+        _, data = _get(f'{self.base}/api/admin/library')
+        self.assertEqual(len(data['vocab']), 2)
+
+    def test_library_vocab_has_required_fields(self):
+        _, data = _get(f'{self.base}/api/admin/library')
+        for entry in data['vocab'].values():
+            self.assertIn('name',     entry)
+            self.assertIn('count',    entry)
+            self.assertIn('language', entry)
+
+    def test_library_unknown_admin_post_404(self):
+        status, _ = _post(f'{self.base}/api/admin/nonexistent', {})
+        self.assertEqual(status, 404)
+
+
 if __name__ == '__main__':
     unittest.main()

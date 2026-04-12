@@ -74,7 +74,7 @@ function restoreLesson() {
 
 // ── lesson load ───────────────────────────────────────────────────────────────
 
-function loadLesson(idx) {
+async function loadLesson(idx) {
   if (!lessons.length) return;
   currentIdx   = idx;
   lastActiveEl = null;
@@ -87,6 +87,13 @@ function loadLesson(idx) {
   a.src        = `/audio/${currentUser.default_lang}/${lesson.mp3_path}`;
   a.removeEventListener('timeupdate', onTimeUpdate);
   a.addEventListener('timeupdate', onTimeUpdate);
+
+  // Fetch full entry data on first load; cache it on the lesson object.
+  if (!lesson.entries) {
+    const res     = await fetch(`/api/lessons/${currentUser.default_lang}/${lesson.lesson_path}`);
+    const data    = await res.json();
+    lesson.entries = data.entries ?? [];
+  }
 
   render();
 }

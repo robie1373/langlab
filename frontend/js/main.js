@@ -75,6 +75,11 @@ async function startSession(user) {
   buildAppBar(user);
   showView('view-app');
 
+  // Navigate to default view immediately so the UI is responsive and
+  // background inits can't clobber a view the user has already opened.
+  const defaultView = user.default_lang === 'korean' ? 'view-player' : 'view-lessons';
+  navigate(defaultView);   // fire-and-forget — starts initPlayer async
+
   // Init modules (once per user)
   if (initializedFor !== user.id) {
     await initSpeech(user.default_lang === 'korean' ? 'ko-KR' : 'es-ES');
@@ -87,9 +92,6 @@ async function startSession(user) {
     initAdmin(users);
     initializedFor = user.id;
   }
-
-  const defaultView = user.default_lang === 'korean' ? 'view-player' : 'view-lessons';
-  await navigate(defaultView);
 }
 
 // ── app bar ───────────────────────────────────────────────────────────────────

@@ -73,6 +73,13 @@ _Last updated: 2026-04-12_
       ffmpeg word audio clip extraction, Nix store ffmpeg fallback (2026-04-12)
 - [x] CLI script (ingest_vtt.py) fixed: added `import os`, `import glob`,
       Nix store ffmpeg PATH injection (2026-04-12)
+- [x] Full data load: Pimsleur Unit 1 (18 lessons, ~1813 clips) + TTMIK 500 words
+      imported. Audio symlinks bridging source tree → data dir for dev. (2026-04-12)
+- [x] docs/ directory: index.md, api.md, issues.md, runbooks/start-server.md,
+      runbooks/data-load.md (2026-04-12)
+- [x] Test suite expanded: 190/190 green. Added TestLibraryStats (db.py),
+      TestAdminLibraryEndpoint (server.py), TestParseVttText, TestPairKorean,
+      TestTcToSecs, TestIngestVttParseVtt, TestIngestVttPairEntries (2026-04-12)
 
 ## Notes to The Bearing
 
