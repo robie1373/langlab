@@ -186,6 +186,38 @@ body.dark .pr-hm-day[data-count="4"] { background: #8aea80; }
 /* XP display in streak row */
 .pr-xp-label { font-size: 0.75rem; color: #c8a000; font-weight: 600; }
 
+/* ── Daily goal ring (flashcard queue screen) ────────────────────────────── */
+.fc-goal-ring {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  opacity: 0.85;
+}
+.fc-goal-svg {
+  width: 54px;
+  height: 54px;
+}
+.fc-goal-track { fill: none; stroke: var(--border); stroke-width: 4; }
+.fc-goal-fill  {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s ease;
+}
+.fc-goal-fill.met { stroke: #22c55e; }
+
+.fc-goal-text  { font-size: 0.8rem; color: var(--text-muted); }
+.fc-goal-done  { font-weight: 600; color: var(--text); }
+.fc-goal-sep   { margin: 0 0.1rem; }
+
+/* ── Jackpot toast ───────────────────────────────────────────────────────── */
+.toast.jackpot {
+  border-left: 3px solid #f59e0b;
+  animation: toast-in 0.3s ease, toast-out 0.4s ease 5.6s forwards;
+}
+
 /* ── Rarity colours (for flashcard borders etc) ──────────────────────────── */
 :root {
   --rarity-fundamental: #c8a000;

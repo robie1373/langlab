@@ -383,6 +383,36 @@ class TestPandREndpoints(unittest.TestCase):
         # Second call should award nothing new
         self.assertEqual(d2['awarded'], [])
 
+    def test_session_response_has_jackpot_key(self):
+        uid = self._uid()
+        _, data = _post(f'{self.base}/api/sessions', {
+            'user_id': uid, 'language': 'korean', 'session_type': 'pimsleur'
+        })
+        self.assertIn('jackpot', data)   # may be None or a dict
+        self.assertIn('id', data)
+
+    def test_session_response_has_goal(self):
+        uid = self._uid()
+        _, data = _post(f'{self.base}/api/sessions', {
+            'user_id': uid, 'language': 'korean', 'session_type': 'pimsleur'
+        })
+        self.assertIn('goal', data)
+        self.assertIn('daily_cards', data['goal'])
+        self.assertIn('today_reviews', data['goal'])
+
+    def test_goals_get(self):
+        uid = self._uid()
+        status, data = _get(f'{self.base}/api/goals/{uid}')
+        self.assertEqual(status, 200)
+        self.assertIn('daily_cards', data)
+        self.assertEqual(data['daily_cards'], 20)   # default
+
+    def test_goals_set(self):
+        uid = self._uid()
+        status, data = _post(f'{self.base}/api/goals/{uid}', {'daily_cards': 30})
+        self.assertEqual(status, 200)
+        self.assertEqual(data['daily_cards'], 30)
+
 
 if __name__ == '__main__':
     unittest.main()

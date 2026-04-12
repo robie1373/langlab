@@ -247,15 +247,18 @@ class TestSessions(unittest.TestCase):
         self.db = make_db()
         self.user_id = self.db.get_users()[0]['id']
 
-    def test_log_session_returns_id(self):
-        sid = self.db.log_session({
+    def test_log_session_returns_dict_with_id(self):
+        result = self.db.log_session({
             'user_id':      self.user_id,
             'language':     'korean',
             'session_type': 'pimsleur',
             'lesson_path':  'pimsleur/unit-1/lesson-06',
         })
-        self.assertIsInstance(sid, int)
-        self.assertGreater(sid, 0)
+        self.assertIsInstance(result, dict)
+        self.assertIn('id', result)
+        self.assertIsInstance(result['id'], int)
+        self.assertGreater(result['id'], 0)
+        self.assertIn('goal', result)
 
     def test_get_sessions(self):
         self.db.log_session({'user_id': self.user_id, 'language': 'korean', 'session_type': 'pimsleur'})
@@ -299,7 +302,8 @@ class TestFlashcardReview(unittest.TestCase):
         self.assertEqual(due[0]['word_id'], self.word_id)
 
     def test_review_logged_with_session(self):
-        sid = self.db.log_session({'user_id': self.user_id, 'language': 'korean', 'session_type': 'flashcard'})
+        result = self.db.log_session({'user_id': self.user_id, 'language': 'korean', 'session_type': 'flashcard'})
+        sid = result['id']
         self.db.review_card({'user_id': self.user_id, 'word_id': self.word_id,
                              'rating': EASY, 'session_id': sid})
         row = self.db._conn.execute(

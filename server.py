@@ -194,6 +194,9 @@ class LangLabHandler(BaseHTTPRequestHandler):
                 'group_labels': GROUP_LABELS,
             })
 
+        elif m := re.match(r'^/api/goals/(\d+)$', path):
+            self._json(self.db.get_goal(int(m.group(1))))
+
         else:
             self._err(404, 'Unknown endpoint')
 
@@ -213,8 +216,8 @@ class LangLabHandler(BaseHTTPRequestHandler):
         body = self._read_body()
 
         if path == '/api/sessions':
-            session_id = self.db.log_session(body)
-            self._json({'id': session_id})
+            result = self.db.log_session(body)
+            self._json(result)
 
         elif path == '/api/vocab/rate':
             self._json(self.db.rate_word(body))
@@ -225,6 +228,13 @@ class LangLabHandler(BaseHTTPRequestHandler):
         elif m := re.match(r'^/api/achievements/check/(\d+)$', path):
             newly_earned = self.db.check_and_award(int(m.group(1)))
             self._json({'awarded': newly_earned})
+
+        elif m := re.match(r'^/api/goals/(\d+)$', path):
+            self._json(self.db.set_goal(
+                int(m.group(1)),
+                int(body.get('daily_cards', 20)),
+                body.get('show_leaderboard'),
+            ))
 
         elif m := re.match(r'^/api/admin/backfill-rarity/([^/]+)$', path):
             count = self.db.backfill_rarity(m.group(1))

@@ -5,7 +5,7 @@
  */
 
 import { showToast } from './ui.js';
-import { showMastered } from './toast.js';
+import { showMastered, showXP } from './toast.js';
 import { checkAchievements } from './progress.js';
 
 let user        = null;
@@ -26,9 +26,13 @@ export async function initFlashcards(currentUser) {
 }
 
 export async function refresh() {
-  const res  = await fetch(`/api/flashcards/due/${user.id}`);
-  queue      = await res.json();
-  renderQueue();
+  const [dueRes, goalRes] = await Promise.all([
+    fetch(`/api/flashcards/due/${user.id}`),
+    fetch(`/api/goals/${user.id}`),
+  ]);
+  queue = await dueRes.json();
+  const goal = await goalRes.json();
+  renderQueue(goal);
 }
 
 // ── screen management ────────────────────────────────────────────────────────
@@ -41,7 +45,7 @@ function showScreen(name) {
 
 // ── queue screen ──────────────────────────────────────────────────────────────
 
-function renderQueue() {
+function renderQueue(goal) {
   showScreen('queue');
   document.getElementById('fc-due-number').textContent = queue.length;
 
@@ -54,6 +58,33 @@ function renderQueue() {
       queue.length === 1 ? '1 card due for review' : `${queue.length} cards due for review`;
     btn.disabled = false;
   }
+
+  // Daily goal ring
+  if (goal) renderGoalRing(goal);
+}
+
+function renderGoalRing(goal) {
+  const wrap = document.getElementById('fc-goal-ring');
+  if (!wrap) return;
+  const done   = goal.today_reviews ?? 0;
+  const target = goal.daily_cards   ?? 20;
+  const pct    = Math.min(done / target, 1);
+  const r      = 22;
+  const circ   = 2 * Math.PI * r;
+  const offset = circ * (1 - pct);
+  const met    = done >= target;
+  wrap.innerHTML = `
+    <svg class="fc-goal-svg" viewBox="0 0 54 54" aria-label="Daily goal: ${done} of ${target}">
+      <circle cx="27" cy="27" r="${r}" class="fc-goal-track"/>
+      <circle cx="27" cy="27" r="${r}" class="fc-goal-fill ${met ? 'met' : ''}"
+        stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
+        transform="rotate(-90 27 27)"/>
+    </svg>
+    <div class="fc-goal-text">
+      <span class="fc-goal-done">${done}</span>
+      <span class="fc-goal-sep">/</span>
+      <span class="fc-goal-target">${target}</span>
+    </div>`;
 }
 
 // ── review ────────────────────────────────────────────────────────────────────
@@ -72,6 +103,9 @@ async function startReview() {
   });
   const data = await res.json();
   sessionId  = data.id;
+
+  // Jackpot notification (fire before review starts so it feels like a gift)
+  if (data.jackpot) showJackpot(data.jackpot);
 
   current = 0;
   results = [];
@@ -240,4 +274,20 @@ function onKey(ev) {
       rateCard(3);
     }
   }
+}
+
+// ── jackpot ───────────────────────────────────────────────────────────────────
+
+function showJackpot(jp) {
+  const el = document.createElement('div');
+  el.className = 'toast jackpot';
+  el.innerHTML = `
+    <span class="toast-icon">${jp.icon ?? '🎉'}</span>
+    <span class="toast-body">
+      <span class="toast-title">${jp.label}!</span>
+      <span class="toast-desc">${jp.desc}</span>
+    </span>`;
+  document.getElementById('toast-container')?.appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+  if (jp.xp > 0) showXP(jp.xp, jp.label);
 }

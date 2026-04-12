@@ -511,14 +511,32 @@ class Database:
             )
         )
         self._conn.commit()
-        session_id = cur.lastrowid
+        session_id  = cur.lastrowid
+        user_id_int = int(body['user_id'])
+        session_type = body['session_type']
 
         # XP for completing a session
-        session_type = body['session_type']
         xp = XP_SESSION.get(session_type, 100)
-        self.log_xp(int(body['user_id']), xp, 'session', {'session_type': session_type})
+        self.log_xp(user_id_int, xp, 'session', {'session_type': session_type})
 
-        return session_id
+        # Jackpot roll
+        jackpot = self._roll_jackpot(user_id_int)
+
+        # Daily goal check — award XP if goal just met
+        goal_data   = self.get_goal(user_id_int)
+        goal_met    = (goal_data['today_reviews'] > 0 and
+                       goal_data['today_reviews'] >= goal_data['daily_cards'])
+        goal_was_met_before = self._conn.execute(
+            """SELECT 1 FROM xp_events
+               WHERE user_id=? AND source='daily_goal'
+               AND date(timestamp)=date('now')""",
+            (user_id_int,)
+        ).fetchone()
+        if goal_met and not goal_was_met_before:
+            from achievements import XP_DAILY_GOAL
+            self.log_xp(user_id_int, XP_DAILY_GOAL, 'daily_goal', {})
+
+        return {'id': session_id, 'jackpot': jackpot, 'goal': goal_data}
 
     def get_library_stats(self) -> dict:
         rows = self._conn.execute(
@@ -837,3 +855,87 @@ class Database:
             (user_id,)
         ).fetchall()
         return [_row_to_dict(r) for r in rows]
+
+    # ── PandR: daily goal ────────────────────────────────────────────────────
+
+    def get_goal(self, user_id: int) -> dict:
+        row = self._conn.execute(
+            "SELECT * FROM user_goals WHERE user_id=?", (user_id,)
+        ).fetchone()
+        goal = _row_to_dict(row) if row else {'user_id': user_id, 'daily_cards': 20, 'show_leaderboard': 0}
+
+        # Today's review count
+        today_count = self._conn.execute(
+            """SELECT COUNT(*) as n FROM reviews
+               WHERE user_id=? AND date(timestamp) = date('now')""",
+            (user_id,)
+        ).fetchone()['n']
+
+        return {**goal, 'today_reviews': today_count}
+
+    def set_goal(self, user_id: int, daily_cards: int, show_leaderboard: int = None) -> dict:
+        existing = self._conn.execute(
+            "SELECT show_leaderboard FROM user_goals WHERE user_id=?", (user_id,)
+        ).fetchone()
+        sl = show_leaderboard if show_leaderboard is not None \
+             else (existing['show_leaderboard'] if existing else 0)
+        self._conn.execute(
+            """INSERT INTO user_goals (user_id, daily_cards, show_leaderboard)
+               VALUES (?,?,?)
+               ON CONFLICT(user_id) DO UPDATE SET
+                 daily_cards=excluded.daily_cards,
+                 show_leaderboard=excluded.show_leaderboard""",
+            (user_id, daily_cards, sl)
+        )
+        self._conn.commit()
+        return self.get_goal(user_id)
+
+    # ── PandR: jackpot ───────────────────────────────────────────────────────
+
+    def _roll_jackpot(self, user_id: int) -> Optional[dict]:
+        """
+        Pity-guaranteed jackpot system.
+        Sessions 1-2 since last jackpot: 20% chance
+        Session 3: 60%, Session 4: 90%, Session 5+: guaranteed.
+        Returns jackpot dict if triggered, None otherwise.
+        """
+        import random
+
+        row = self._conn.execute(
+            "SELECT sessions_since_jackpot FROM jackpot_state WHERE user_id=?",
+            (user_id,)
+        ).fetchone()
+        count = (row['sessions_since_jackpot'] + 1) if row else 1
+
+        thresholds = {1: 0.20, 2: 0.20, 3: 0.60, 4: 0.90}
+        prob = thresholds.get(count, 1.0)
+
+        if random.random() > prob:
+            # No jackpot this time — update counter
+            self._conn.execute(
+                """INSERT INTO jackpot_state (user_id, sessions_since_jackpot) VALUES (?,?)
+                   ON CONFLICT(user_id) DO UPDATE SET sessions_since_jackpot=excluded.sessions_since_jackpot""",
+                (user_id, count)
+            )
+            self._conn.commit()
+            return None
+
+        # Jackpot triggered — pick type
+        jackpots = [
+            {'type': 'lucky_study',    'label': 'Lucky Study',      'desc': '2× XP on your next session',          'xp': 0,    'icon': '🍀'},
+            {'type': 'vocab_surge',    'label': 'Vocabulary Surge',  'desc': 'Next 10 reviews earn triple XP',       'xp': 0,    'icon': '⚡'},
+            {'type': 'xp_cache',       'label': 'Ancient Cache',     'desc': 'Bonus XP discovered!',                 'xp': 3000, 'icon': '💎'},
+            {'type': 'critical_study', 'label': 'Critical Study',    'desc': 'Next mastered card earns 5× XP',       'xp': 0,    'icon': '🎯'},
+        ]
+        prize = random.choice(jackpots)
+        if prize['xp'] > 0:
+            self.log_xp(user_id, prize['xp'], 'jackpot', {'type': prize['type']})
+
+        # Reset counter
+        self._conn.execute(
+            """INSERT INTO jackpot_state (user_id, sessions_since_jackpot) VALUES (?,0)
+               ON CONFLICT(user_id) DO UPDATE SET sessions_since_jackpot=0""",
+            (user_id,)
+        )
+        self._conn.commit()
+        return prize
