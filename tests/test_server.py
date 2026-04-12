@@ -320,5 +320,69 @@ class TestAdminLibraryEndpoint(unittest.TestCase):
         self.assertEqual(status, 404)
 
 
+class TestPandREndpoints(unittest.TestCase):
+    """Tests for the Progress & Rewards API endpoints.
+    Each test gets a fresh server/DB to avoid state bleed."""
+
+    def setUp(self):
+        self.server, self.base = _start_server()
+
+    def tearDown(self):
+        self.server.shutdown()
+
+    def _uid(self):
+        _, users = _get(f'{self.base}/api/users')
+        return users[0]['id']
+
+    def test_progress_200(self):
+        status, _ = _get(f'{self.base}/api/progress/{self._uid()}')
+        self.assertEqual(status, 200)
+
+    def test_progress_fields(self):
+        _, data = _get(f'{self.base}/api/progress/{self._uid()}')
+        for field in ('streak', 'best_streak', 'total_days', 'heatmap', 'xp_total'):
+            self.assertIn(field, data)
+
+    def test_progress_initial_zeros(self):
+        _, data = _get(f'{self.base}/api/progress/{self._uid()}')
+        self.assertEqual(data['streak'],     0)
+        self.assertEqual(data['total_days'], 0)
+        self.assertEqual(data['xp_total'],   0)
+
+    def test_achievements_200(self):
+        status, _ = _get(f'{self.base}/api/achievements/{self._uid()}')
+        self.assertEqual(status, 200)
+
+    def test_achievements_has_badge_defs(self):
+        _, data = _get(f'{self.base}/api/achievements/{self._uid()}')
+        self.assertIn('badge_defs', data)
+        self.assertGreater(len(data['badge_defs']), 20)
+
+    def test_achievements_has_groups(self):
+        _, data = _get(f'{self.base}/api/achievements/{self._uid()}')
+        self.assertIn('badge_groups', data)
+        self.assertIn('group_labels', data)
+
+    def test_achievements_earned_empty_initially(self):
+        _, data = _get(f'{self.base}/api/achievements/{self._uid()}')
+        self.assertEqual(data['earned'], [])
+
+    def test_achievements_check_post_200(self):
+        status, data = _post(f'{self.base}/api/achievements/check/{self._uid()}', {})
+        self.assertEqual(status, 200)
+        self.assertIn('awarded', data)
+
+    def test_achievements_check_idempotent(self):
+        uid = self._uid()
+        # Log a session so first_lesson is awardable
+        _post(f'{self.base}/api/sessions', {
+            'user_id': uid, 'language': 'korean', 'session_type': 'pimsleur'
+        })
+        _, d1 = _post(f'{self.base}/api/achievements/check/{uid}', {})
+        _, d2 = _post(f'{self.base}/api/achievements/check/{uid}', {})
+        # Second call should award nothing new
+        self.assertEqual(d2['awarded'], [])
+
+
 if __name__ == '__main__':
     unittest.main()

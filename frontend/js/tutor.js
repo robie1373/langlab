@@ -8,6 +8,7 @@ import { chat } from './gemini.js';
 import { speak, listen, stopListening, stopSpeaking, isListening,
          isRecognitionSupported, setSpeechLang } from './speech.js';
 import { showToast, escapeHtml } from './ui.js';
+import { checkAchievements } from './progress.js';
 
 let _user         = null;
 let _chatHistory  = [];
@@ -316,8 +317,23 @@ function showFeedback(raw) {
   content.innerHTML = html;
 }
 
-function endConversation() {
+async function endConversation() {
   stopSpeaking();
+  // Log the tutor session before resetting
+  if (_user && _chatHistory.length > 0) {
+    try {
+      await fetch('/api/sessions', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id:      _user.id,
+          language:     _user.default_lang,
+          session_type: 'tutor',
+        }),
+      });
+      checkAchievements(_user.id);
+    } catch { /* non-critical */ }
+  }
   resetChat();
   showToast(_user?.default_lang === 'korean' ? '대화가 끝났습니다!' : '¡Conversación terminada!');
 }

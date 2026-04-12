@@ -12,6 +12,7 @@
  */
 
 import { showToast } from './ui.js';
+import { checkAchievements } from './progress.js';
 
 let lessons       = [];
 let currentIdx    = 0;
@@ -282,6 +283,7 @@ async function logSession() {
       lesson_path:  lesson.lesson_path || lesson.id,
     }),
   });
+  checkAchievements(currentUser.id);
 }
 
 // ── rating card ───────────────────────────────────────────────────────────────

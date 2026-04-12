@@ -12,6 +12,34 @@ from typing import Any, Optional
 import fsrs
 from achievements import BADGE_BY_KEY, XP_REVIEW, XP_MASTERED_BASE, XP_MASTERED_RARITY, XP_SESSION, XP_STREAK_BONUS
 
+# ── Word frequency / rarity ───────────────────────────────────────────────────
+
+_FREQ_CACHE: dict[str, dict] = {}   # language → {word: rank}
+
+def _freq_data(language: str) -> dict:
+    """Load frequency data for a language, cached after first load."""
+    if language not in _FREQ_CACHE:
+        freq_file = Path(__file__).parent / 'frequency_data' / f'{language}.json'
+        if freq_file.exists():
+            _FREQ_CACHE[language] = json.loads(freq_file.read_text(encoding='utf-8'))
+        else:
+            _FREQ_CACHE[language] = {}
+    return _FREQ_CACHE[language]
+
+def _assign_rarity(word: str, language: str) -> tuple[str, Optional[int]]:
+    """Return (rarity, frequency_rank) for a word."""
+    freq = _freq_data(language)
+    rank = freq.get(word)
+    if rank is None:
+        return ('niche', None)
+    if rank <= 500:
+        return ('fundamental', rank)
+    if rank <= 2000:
+        return ('essential', rank)
+    if rank <= 5000:
+        return ('interesting', rank)
+    return ('niche', rank)
+
 
 SCHEMA = """
 PRAGMA journal_mode = WAL;
@@ -246,18 +274,37 @@ class Database:
     def upsert_word(self, language: str, word: str, translation: Optional[str],
                     source: str, source_lesson: Optional[str],
                     audio_path: Optional[str]) -> int:
+        rarity, freq_rank = _assign_rarity(word, language)
         self._conn.execute(
-            """INSERT INTO words (language, word, translation, source, source_lesson, audio_path)
-               VALUES (?,?,?,?,?,?)
+            """INSERT INTO words (language, word, translation, source, source_lesson, audio_path, rarity, frequency_rank)
+               VALUES (?,?,?,?,?,?,?,?)
                ON CONFLICT(language, word) DO UPDATE SET
                  translation=COALESCE(excluded.translation, translation),
-                 audio_path=COALESCE(excluded.audio_path, audio_path)""",
-            (language, word, translation, source, source_lesson, audio_path)
+                 audio_path=COALESCE(excluded.audio_path, audio_path),
+                 rarity=CASE WHEN excluded.rarity != 'niche' THEN excluded.rarity ELSE rarity END,
+                 frequency_rank=COALESCE(excluded.frequency_rank, frequency_rank)""",
+            (language, word, translation, source, source_lesson, audio_path, rarity, freq_rank)
         )
         self._conn.commit()
         return self._conn.execute(
             "SELECT id FROM words WHERE language=? AND word=?", (language, word)
         ).fetchone()['id']
+
+    def backfill_rarity(self, language: str) -> int:
+        """Re-assign rarity for all existing words in a language. Returns count updated."""
+        rows = self._conn.execute(
+            "SELECT id, word FROM words WHERE language=?", (language,)
+        ).fetchall()
+        updated = 0
+        for row in rows:
+            rarity, freq_rank = _assign_rarity(row['word'], language)
+            self._conn.execute(
+                "UPDATE words SET rarity=?, frequency_rank=? WHERE id=?",
+                (rarity, freq_rank, row['id'])
+            )
+            updated += 1
+        self._conn.commit()
+        return updated
 
     def ensure_user_vocab(self, user_id: int, word_id: int):
         self._conn.execute(
@@ -364,7 +411,7 @@ class Database:
     def get_due_cards(self, user_id: int, limit: int = 50) -> list[dict]:
         now = int(datetime.now(timezone.utc).timestamp())
         rows = self._conn.execute(
-            """SELECT w.id as word_id, w.word, w.translation, w.audio_path,
+            """SELECT w.id as word_id, w.word, w.translation, w.audio_path, w.rarity,
                       uv.state, uv.stability, uv.difficulty, uv.reps, uv.lapses,
                       uv.elapsed_days, uv.scheduled_days, uv.due_at, uv.last_review
                FROM user_vocab uv JOIN words w ON w.id = uv.word_id

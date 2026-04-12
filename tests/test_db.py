@@ -530,5 +530,52 @@ class TestPandR(unittest.TestCase):
         self.assertIn('first_lesson', badge_keys)
 
 
+class TestRarity(unittest.TestCase):
+    """Test word rarity assignment via frequency data lookup."""
+
+    def setUp(self):
+        self.db = make_db()
+
+    def test_upsert_word_default_rarity_is_niche(self):
+        # No frequency data for 'test' language → default niche
+        wid = self.db.upsert_word('test', '테스트', 'test', 'manual', None, None)
+        row = self.db._conn.execute("SELECT rarity FROM words WHERE id=?", (wid,)).fetchone()
+        self.assertEqual(row['rarity'], 'niche')
+
+    def test_due_cards_include_rarity(self):
+        db = make_db()
+        uid = db.get_users()[0]['id']
+        wid = db.upsert_word('korean', '안녕', 'hello', 'manual', None, None)
+        db.ensure_user_vocab(uid, wid)
+        due = db.get_due_cards(uid)
+        self.assertEqual(len(due), 1)
+        self.assertIn('rarity', due[0])
+
+    def test_assign_rarity_uses_frequency_data(self):
+        import db as db_module
+        # Inject fake frequency data
+        db_module._FREQ_CACHE['fakelang'] = {'hello': 1, 'world': 600, 'obscure': 3000, 'rare_word': 10000}
+        try:
+            r1, rank1 = db_module._assign_rarity('hello',     'fakelang')
+            r2, rank2 = db_module._assign_rarity('world',     'fakelang')
+            r3, rank3 = db_module._assign_rarity('obscure',   'fakelang')
+            r4, rank4 = db_module._assign_rarity('rare_word', 'fakelang')
+            r5, rank5 = db_module._assign_rarity('unknown',   'fakelang')
+            self.assertEqual(r1, 'fundamental')
+            self.assertEqual(r2, 'essential')
+            self.assertEqual(r3, 'interesting')
+            self.assertEqual(r4, 'niche')
+            self.assertEqual(r5, 'niche')
+            self.assertEqual(rank1, 1)
+            self.assertIsNone(rank5)
+        finally:
+            del db_module._FREQ_CACHE['fakelang']
+
+    def test_backfill_rarity_runs_without_error(self):
+        self.db.upsert_word('korean', '안녕', 'hello', 'manual', None, None)
+        count = self.db.backfill_rarity('korean')
+        self.assertGreaterEqual(count, 1)
+
+
 if __name__ == '__main__':
     unittest.main()

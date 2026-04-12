@@ -96,7 +96,9 @@ function showCard(idx) {
   document.querySelector('.fc-translation').textContent             = card.translation || '';
 
   // Reset flip
-  document.getElementById('fc-card').classList.remove('flipped');
+  const fcCard = document.getElementById('fc-card');
+  fcCard.classList.remove('flipped');
+  fcCard.dataset.rarity = card.rarity ?? 'niche';
   document.getElementById('fc-show-wrap').classList.remove('hidden');
   document.getElementById('fc-rating-wrap').classList.add('hidden');
 

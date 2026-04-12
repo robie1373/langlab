@@ -6,6 +6,7 @@
 import { generate, parseJSON, hasApiKey } from './gemini.js';
 import { speak, setSpeechLang } from './speech.js';
 import { showToast, escapeHtml, showLoading } from './ui.js';
+import { checkAchievements } from './progress.js';
 
 let _user        = null;
 let _lessonData  = null;
@@ -147,6 +148,7 @@ async function logSession() {
     });
     const data = await res.json();
     _sessionId = data.id;
+    checkAchievements(_user.id);
   } catch { /* non-critical */ }
 }
 

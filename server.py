@@ -226,6 +226,10 @@ class LangLabHandler(BaseHTTPRequestHandler):
             newly_earned = self.db.check_and_award(int(m.group(1)))
             self._json({'awarded': newly_earned})
 
+        elif m := re.match(r'^/api/admin/backfill-rarity/([^/]+)$', path):
+            count = self.db.backfill_rarity(m.group(1))
+            self._json({'updated': count})
+
         else:
             self._err(404, 'Unknown endpoint')
 
