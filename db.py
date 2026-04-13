@@ -529,7 +529,7 @@ class Database:
         goal_was_met_before = self._conn.execute(
             """SELECT 1 FROM xp_events
                WHERE user_id=? AND source='daily_goal'
-               AND date(timestamp)=date('now')""",
+               AND date(timestamp,'localtime')=date('now','localtime')""",
             (user_id_int,)
         ).fetchone()
         if goal_met and not goal_was_met_before:
@@ -568,7 +568,7 @@ class Database:
     def get_progress(self, user_id: int) -> dict:
         """Streak, total days, heat map for the progress view."""
         rows = self._conn.execute(
-            """SELECT DISTINCT date(timestamp) as day
+            """SELECT DISTINCT date(timestamp,'localtime') as day
                FROM sessions WHERE user_id=?
                ORDER BY day DESC""",
             (user_id,)
@@ -608,9 +608,9 @@ class Database:
 
             # Heat map: last 365 days — {YYYY-MM-DD: session_count}
             hm_rows = self._conn.execute(
-                """SELECT date(timestamp) as day, COUNT(*) as n
+                """SELECT date(timestamp,'localtime') as day, COUNT(*) as n
                    FROM sessions
-                   WHERE user_id=? AND date(timestamp) >= date('now', '-365 days')
+                   WHERE user_id=? AND date(timestamp,'localtime') >= date('now','localtime','-365 days')
                    GROUP BY day""",
                 (user_id,)
             ).fetchall()
@@ -690,7 +690,7 @@ class Database:
         session_types_this_week = {
             r['session_type'] for r in self._conn.execute(
                 """SELECT DISTINCT session_type FROM sessions
-                   WHERE user_id=? AND date(timestamp) >= date('now', '-7 days')""",
+                   WHERE user_id=? AND date(timestamp,'localtime') >= date('now','localtime','-7 days')""",
                 (user_id,)
             ).fetchall()
         }
@@ -805,7 +805,7 @@ class Database:
         progress = self.get_progress(user_id)
         # The streak before today — look at yesterday's count
         rows = self._conn.execute(
-            """SELECT DISTINCT date(timestamp) as day
+            """SELECT DISTINCT date(timestamp,'localtime') as day
                FROM sessions WHERE user_id=?
                ORDER BY day DESC""",
             (user_id,)
@@ -867,7 +867,7 @@ class Database:
         # Today's review count
         today_count = self._conn.execute(
             """SELECT COUNT(*) as n FROM reviews
-               WHERE user_id=? AND date(timestamp) = date('now')""",
+               WHERE user_id=? AND date(timestamp,'localtime') = date('now','localtime')""",
             (user_id,)
         ).fetchone()['n']
 
