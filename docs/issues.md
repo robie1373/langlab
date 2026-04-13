@@ -16,7 +16,7 @@ Drop problems and feature requests here. These are picked up in future work sess
 
 - [ ] **flashcard deck picker** - The flashcard page needs a tool to select which decks are available, the status of each deck, including review numbers. _Added: 2026-04-12_ 
 
-- [ ] **Progress view — streaks and achievements** — Current progress view shows session counts and vocab stats. Needs: study streak (consecutive days), achievements (e.g. "100 words reviewed", "7-day streak", "first lesson complete"). Design: `/api/progress/<user_id>` endpoint + new section in progress.js. _Added: 2026-04-12_
+- [x] **Progress view — streaks and achievements** — Full Progress & Rewards suite: streaks (current/best/lifetime, New Game+ framing), 52-week heat map, 27-badge achievement system (7 groups), XP system (per review/mastery/session/daily goal), card rarity (Fundamental/Essential/Interesting/Niche from frequency data), daily goal ring on flashcard queue, jackpot system (pity-guaranteed ~1 in 3 sessions), real-time toast notifications for badges/XP/mastery. _Closed: 2026-04-12_
 
 - [ ] **Bulk ingest timeout strategy** — 18 lessons × ~300 clips = ~5400 ffmpeg calls. Browser upload times out. Current workaround: use CLI for bulk ingest (`scripts/ingest_vtt.py`), web UI for one-offs. Longer-term options: SSE progress stream, or accept a server-side directory path instead of file upload. _Added: 2026-04-12_
 
