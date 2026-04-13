@@ -2,7 +2,7 @@
 
 Language learning suite — VTT player, flashcards, AI lessons, conversational tutor.
 
-> Last updated: 2026-04-12
+> Last updated: 2026-04-13
 
 ---
 
@@ -29,8 +29,11 @@ Language learning suite — VTT player, flashcards, AI lessons, conversational t
 
 **Entry points:**
 - `server.py` — HTTP server and all API handlers
-- `db.py` — database layer
+- `db.py` — database layer (includes all PandR logic)
 - `fsrs.py` — FSRS v5 algorithm
+- `achievements.py` — badge definitions, XP constants, badge groups
+- `frequency_data/korean.json` — Korean word frequency (7000 words, OpenSubtitles)
+- `frequency_data/spanish.json` — Spanish word frequency (7000 words, OpenSubtitles)
 - `scripts/ingest_vtt.py` — CLI: bulk Pimsleur VTT + MP3 → DB
 - `scripts/import_apkg.py` — CLI: Anki `.apkg` → DB
 
@@ -82,4 +85,5 @@ volume and the web ingest endpoint writes directly to the correct paths.
 python3 -m unittest discover -s tests -v
 ```
 
-All tests use in-memory SQLite. No files written to disk. 190 tests.
+All tests use in-memory SQLite. No files written to disk. **143 unit tests** (test_db.py, test_server.py, test_vtt.py).
+E2E test suite via Playwright: **tests/e2e/** — covers navigation, player, flashcards, admin, mobile, progress view.

@@ -257,8 +257,24 @@ Log a study session.
 
 **Response `200`:**
 ```json
-{ "id": 7 }
+{
+  "id": 7,
+  "jackpot": {
+    "type": "xp_bonus",
+    "label": "XP Surge",
+    "desc":  "Next 5 reviews earn 3× XP",
+    "xp":    500
+  },
+  "goal": {
+    "user_id":      1,
+    "daily_cards":  20,
+    "today_reviews": 3
+  }
+}
 ```
+
+`jackpot` is `null` if no jackpot was triggered this session.
+`goal.today_reviews` is the number of flashcard reviews logged today (local date).
 
 ---
 
@@ -280,6 +296,126 @@ Returns the 100 most recent sessions for a user, newest first.
   }
 ]
 ```
+
+---
+
+## Progress & Rewards
+
+### `GET /api/progress/<user_id>`
+
+Returns streak data, heat map, and XP total for the progress view.
+
+**Response `200`:**
+```json
+{
+  "streak":      7,
+  "best_streak": 14,
+  "total_days":  42,
+  "heatmap":     { "2026-04-12": 2, "2026-04-11": 1 },
+  "xp_total":    12450
+}
+```
+
+`heatmap` is a map of `YYYY-MM-DD → session count` for the past 365 days (local date).
+`total_days` is lifetime distinct study days — never decreases even if streak resets.
+
+---
+
+### `GET /api/achievements/<user_id>`
+
+Returns badge definitions and earned achievements.
+
+**Response `200`:**
+```json
+{
+  "earned":       [{ "key": "first_review", "earned_at": "2026-04-12T..." }],
+  "badge_defs":   [{ "key": "first_review", "name": "First Step", "desc": "...", "icon": "👣", "group": "first_steps" }],
+  "badge_groups": ["first_steps", "streaks", "chapters", "lifetime", "volume", "mastery", "exploration"],
+  "group_labels": { "first_steps": "First Steps", "streaks": "Streaks", ... }
+}
+```
+
+---
+
+### `POST /api/achievements/check/<user_id>`
+
+Check and award any newly earned badges. Call after each session or review event.
+
+**Body:** `{}` (empty)
+
+**Response `200`:**
+```json
+{ "awarded": [{ "key": "streak_7", "name": "Week Warrior", "icon": "🔥", ... }] }
+```
+
+`awarded` is empty `[]` if no new badges were earned (idempotent).
+
+---
+
+### `GET /api/goals/<user_id>`
+
+Returns the user's daily goal settings plus today's review count.
+
+**Response `200`:**
+```json
+{
+  "user_id":        1,
+  "daily_cards":    20,
+  "today_reviews":  7,
+  "show_leaderboard": 0
+}
+```
+
+---
+
+### `POST /api/goals/<user_id>`
+
+Update goal settings.
+
+**Body:**
+```json
+{ "daily_cards": 30 }
+```
+
+**Response `200`:** Updated goal object (same shape as GET).
+
+---
+
+### `GET /api/flashcards/due/<user_id>`
+
+_(Updated)_ Now also returns `rarity` field on each card.
+
+```json
+{
+  "word_id":  42,
+  "word":     "안녕하세요",
+  "rarity":   "fundamental",
+  ...
+}
+```
+
+**Rarity values:** `fundamental` (gold), `essential` (purple), `interesting` (green), `niche` (white/gray)
+
+---
+
+### `POST /api/flashcards/review`
+
+_(Updated)_ Response now includes `just_mastered` and `rarity`.
+
+```json
+{
+  "word_id":      42,
+  "state":        2,
+  "due_at":       1713052800,
+  "scheduled_days": 21.0,
+  "reps":         4,
+  "just_mastered": true,
+  "rarity":       "essential"
+}
+```
+
+`just_mastered = true` when the card first crosses the mastery threshold:
+`state == 2 AND stability >= 21 days AND reps >= 3`.
 
 ---
 
@@ -362,6 +498,20 @@ Lesson path stored as `pimsleur/<unit_name>/<stem>`.
 
 **Response `400`:** No VTT files provided.
 **Response `500`:** Ingest error.
+
+---
+
+### `POST /api/admin/backfill-rarity/<language>`
+
+Re-assign rarity to all existing words for a language using the current frequency data file.
+Run once after deploying frequency_data/<language>.json to an existing DB.
+
+**Body:** `{}` (empty)
+
+**Response `200`:**
+```json
+{ "updated": 1813 }
+```
 
 ---
 
