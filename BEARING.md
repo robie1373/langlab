@@ -1,6 +1,6 @@
 # Bearing Delegation — langlab
 _The Bearing communicates with this project through this file._
-_Last updated: 2026-04-13_
+_Last updated: 2026-04-14_
 
 ---
 
@@ -42,10 +42,13 @@ _Last updated: 2026-04-13_
 
 ## In Progress
 
-- [ ] **NixOS homelab deployment.** Shelved pending other projects. Full steps in
-      ~/proj/langlab/DEPLOY_TODO.md. Still needs: "LangLab env" 1Password item
-      (GEMINI_API_KEY + CLAUDE_API_KEY), then langlab-env.age encryption, then
-      nixos-anywhere with flipper on VLAN 20.
+- [ ] **NixOS homelab deployment.** Unblocked 2026-04-14 (API keys + VLAN 20 access ready).
+      Full steps in ~/proj/langlab/DEPLOY_TODO.md. Remaining:
+      1. Create "LangLab env" 1Password item (devops vault) with GEMINI_API_KEY + CLAUDE_API_KEY
+      2. Encrypt langlab-env.age (command in DEPLOY_TODO Step 3)
+      3. Connect flipper to VLAN 20, start VM 111, get DHCP IP
+      4. Run nixos-anywhere from flipper
+      5. Switch to OVMF, restart, verify, closeout docs
 
 ## Completed
 

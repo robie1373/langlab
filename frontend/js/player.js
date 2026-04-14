@@ -85,7 +85,7 @@ async function loadLesson(idx) {
 
   const lesson = lessons[idx];
   const a      = audio();
-  a.src        = `/audio/${currentUser.default_lang}/${lesson.mp3_path}`;
+  a.src        = `/audio/${lesson.mp3_path}`;
   a.removeEventListener('timeupdate', onTimeUpdate);
   a.addEventListener('timeupdate', onTimeUpdate);
 
