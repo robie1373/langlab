@@ -260,6 +260,17 @@ function renderPhase() {
   }
 }
 
+// Allow <b> from Gemini responses; strip everything else.
+function safeBold(text) {
+  return escapeHtml(text)
+    .replace(/&lt;b&gt;/g, '<b>')
+    .replace(/&lt;\/b&gt;/g, '</b>');
+}
+
+function stripTags(text) {
+  return text.replace(/<[^>]*>/g, '');
+}
+
 function renderVocab(el) {
   const v = _lessonData.vocab || [];
   el.innerHTML = `
@@ -271,7 +282,7 @@ function renderVocab(el) {
           <div class="lesson-vocab-card" data-idx="${i}">
             <div class="lv-word">${escapeHtml(item.word)}${item.gender ? `<small class="lv-gender">(${escapeHtml(item.gender)})</small>` : ''}</div>
             <div class="lv-translation">${escapeHtml(item.translation)}</div>
-            ${item.example ? `<div class="lv-example">${escapeHtml(item.example)}</div>` : ''}
+            ${item.example ? `<div class="lv-example">${safeBold(item.example)}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -280,7 +291,7 @@ function renderVocab(el) {
   el.querySelectorAll('.lesson-vocab-card').forEach(card => {
     card.addEventListener('click', () => {
       const item = v[parseInt(card.dataset.idx)];
-      speak(item.example || item.word);
+      speak(stripTags(item.example || item.word));
     });
   });
 }
@@ -291,15 +302,15 @@ function renderGrammar(el) {
     <div class="lesson-phase">
       <h3 class="phase-title">${escapeHtml(g.title || '')}</h3>
       <div class="grammar-box">
-        <p class="grammar-explanation">${escapeHtml(g.explanation || '').replace(/\n/g, '<br>')}</p>
-        ${(g.rules || []).map(r => `<div class="grammar-rule">${escapeHtml(r)}</div>`).join('')}
+        <p class="grammar-explanation">${safeBold(g.explanation || '').replace(/\n/g, '<br>')}</p>
+        ${(g.rules || []).map(r => `<div class="grammar-rule">${safeBold(r)}</div>`).join('')}
         <div class="grammar-examples">
           ${(g.examples || []).map(ex => {
             const src = ex.korean || ex.spanish || '';
             const eng = ex.english || ex.translation || '';
-            return `<div class="grammar-example clickable" data-text="${escapeHtml(src)}">
-              <span class="ge-src">${escapeHtml(src)}</span>
-              <span class="ge-eng">${escapeHtml(eng)}</span>
+            return `<div class="grammar-example clickable" data-text="${escapeHtml(stripTags(src))}">
+              <span class="ge-src">${safeBold(src)}</span>
+              <span class="ge-eng">${safeBold(eng)}</span>
             </div>`;
           }).join('')}
         </div>
@@ -327,7 +338,7 @@ function renderReading(el) {
     </div>`;
 
   document.getElementById('btn-read-aloud')
-    .addEventListener('click', () => speak(r.text || ''));
+    .addEventListener('click', () => speak(stripTags(r.text || '')));
 }
 
 function renderDialogue(el) {
@@ -338,10 +349,10 @@ function renderDialogue(el) {
       <p class="phase-hint">${escapeHtml(d.context || '')}</p>
       <div class="dialogue-lines">
         ${(d.lines || []).map((line, i) => `
-          <div class="dialogue-line ${i % 2 === 0 ? 'side-a' : 'side-b'}" data-text="${escapeHtml(line.text)}">
+          <div class="dialogue-line ${i % 2 === 0 ? 'side-a' : 'side-b'}" data-text="${escapeHtml(stripTags(line.text))}">
             <span class="dl-speaker">${escapeHtml(line.speaker)}</span>
             <div class="dl-content">
-              <div class="dl-text">${escapeHtml(line.text)}</div>
+              <div class="dl-text">${safeBold(line.text)}</div>
               ${line.translation ? `<div class="dl-en">${escapeHtml(line.translation)}</div>` : ''}
             </div>
           </div>
