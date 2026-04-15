@@ -40,17 +40,15 @@ _Last updated: 2026-04-14_
       accept a server-side directory path instead of file upload for bulk ingest.
       Not urgent — CLI works fine for now.
 
-## In Progress
-
-- [ ] **NixOS homelab deployment.** Unblocked 2026-04-14 (API keys + VLAN 20 access ready).
-      Full steps in ~/proj/langlab/DEPLOY_TODO.md. Remaining:
-      1. Create "LangLab env" 1Password item (devops vault) with GEMINI_API_KEY + CLAUDE_API_KEY
-      2. Encrypt langlab-env.age (command in DEPLOY_TODO Step 3)
-      3. Connect flipper to VLAN 20, start VM 111, get DHCP IP
-      4. Run nixos-anywhere from flipper
-      5. Switch to OVMF, restart, verify, closeout docs
-
 ## Completed
+
+- [x] **NixOS homelab deployment** (2026-04-14):
+      - VM 111 provisioned via nixos-anywhere on VLAN 20 (192.168.20.11)
+      - Static IP + 1.1.1.1 DNS (internal resolvers blocked from VLAN 20 until Technitium migration)
+      - langlab-env.age secrets decrypted by agenix; Tailscale joined automatically
+      - nginx + Tailscale TLS cert provisioned; serving at https://langlab.vimba-stairs.ts.net
+      - Structured logging added to server.py + db.py (journalctl -u langlab)
+      - RAM set to 1024MB post-deploy
 
 - [x] **Progress & Rewards (PandR) suite** — full gamification suite (2026-04-12/13):
       - Streaks: current/best/total_days. "New Game+" framing — missed day resets streak
@@ -114,6 +112,11 @@ _Last updated: 2026-04-14_
          on first use, cached on the lesson object. (2026-04-12)
 
 ## Notes to The Bearing
+
+- **DNS / Technitium:** langlab VM (192.168.20.11) is using 1.1.1.1 for DNS because
+  192.168.7.53/54 are unreachable from VLAN 20 due to firewall rules. When Technitium
+  is migrated to VLAN 20, update `hosts/langlab/configuration.nix` nameservers to the
+  internal Technitium IP and remove the public DNS workaround.
 
 ---
 
