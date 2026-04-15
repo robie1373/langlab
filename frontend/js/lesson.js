@@ -62,6 +62,7 @@ function buildKoreanPrompt(topic) {
 Topic: "${topic}"
 
 CRITICAL RULES:
+- Do NOT include romanization in Korean. Use 한글 only. Never write Hangul words in Latin letters.
 - NEVER use romanization. Korean text uses 한글 only.
 - All Korean text must be 한글.
 - Keep sentences short and simple.
@@ -101,6 +102,9 @@ function buildSpanishPrompt(topic) {
   return `Generate a Castilian Spanish lesson for an intermediate (B1-B2) female learner.
 
 Topic: "${topic}"
+
+CRITICAL RULES:
+- Do NOT include romanization or phonetic transcriptions in Spanish. Write Spanish words in standard Spanish orthography only.
 
 Return ONLY valid JSON:
 {
@@ -216,7 +220,15 @@ async function generateLesson() {
 
 function nextPhase() {
   const phases = getPhases();
-  if (_currentPhase < phases.length - 1) { _currentPhase++; renderPhase(); }
+  if (_currentPhase < phases.length - 1) {
+    _currentPhase++;
+    renderPhase();
+  } else {
+    // Last phase — "Finish" button → back to start screen
+    _lessonData = null;
+    _sessionId  = null;
+    showStartScreen();
+  }
 }
 
 function prevPhase() {
