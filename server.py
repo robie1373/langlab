@@ -3,6 +3,7 @@
 
 import email
 import json
+import logging
 import mimetypes
 import os
 import re
@@ -13,6 +14,12 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+
+logging.basicConfig(
+    level=getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper(), logging.INFO),
+    format='%(levelname)s %(name)s: %(message)s',
+)
+log = logging.getLogger('langlab')
 
 from db import Database
 
@@ -99,7 +106,7 @@ class LangLabHandler(BaseHTTPRequestHandler):
     db: Database = None  # injected at startup
 
     def log_message(self, fmt, *args):
-        pass  # suppress default Apache-style access log
+        log.debug('%s - - %s', self.address_string(), fmt % args)
 
     # ── response helpers ────────────────────────────────────────────────────
 
@@ -120,6 +127,7 @@ class LangLabHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _err(self, status: int, message: str):
+        log.warning('%s %s → %s %s', self.command, self.path, status, message)
         self._json({'error': message}, status)
 
     def _read_body(self) -> dict:
@@ -476,11 +484,18 @@ if __name__ == '__main__':
     port    = int(os.environ.get('PORT', 8080))
     db_path = str(DATA_DIR / 'study.db')
 
+    log.info('Starting LangLab')
+    log.info('  BASE_DIR     = %s', BASE_DIR)
+    log.info('  FRONTEND_DIR = %s', FRONTEND_DIR)
+    log.info('  DATA_DIR     = %s', DATA_DIR)
+    log.info('  db_path      = %s', db_path)
+    log.info('  port         = %s', port)
+
     db = Database(db_path)
     LangLabHandler.db = db
 
     server = HTTPServer(('0.0.0.0', port), LangLabHandler)
-    print(f'LangLab running on http://0.0.0.0:{port}')
+    log.info('LangLab running on http://0.0.0.0:%s', port)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

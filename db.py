@@ -4,10 +4,14 @@ SQLite via the stdlib sqlite3 module — no external dependencies.
 """
 
 import json
+import logging
+import os
 import sqlite3
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+log = logging.getLogger('langlab.db')
 
 import fsrs
 from achievements import BADGE_BY_KEY, XP_REVIEW, XP_MASTERED_BASE, XP_MASTERED_RARITY, XP_SESSION, XP_STREAK_BONUS
@@ -201,12 +205,16 @@ def _row_to_dict(row) -> dict:
 class Database:
     def __init__(self, path: str):
         self.path = path
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        parent = Path(path).parent
+        log.info('Opening database: %s', path)
+        log.info('  parent dir exists: %s  writable: %s', parent.exists(), os.access(parent, os.W_OK) if parent.exists() else 'n/a')
+        parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
         self._migrate()
         self._seed()
+        log.info('Database ready')
 
     def _migrate(self):
         """Idempotent schema migrations for columns that can't use IF NOT EXISTS."""
