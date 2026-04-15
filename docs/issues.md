@@ -24,7 +24,7 @@ Drop problems and feature requests here. These are picked up in future work sess
 
 - [ ] **Lesson persistence and history** — Generated AI lessons should persist across sessions and accumulate (not be discarded when a new lesson is generated). UI should show a list of past lessons that grows over time; user can select any to review. Needs a `lessons_generated` table (or similar) to store the Gemini JSON per user. Deletion should be explicit (per-lesson trash/delete button). _Added: 2026-04-15_
 
-- [ ] **Homelab deployment** — NixOS service module, disko, secrets all ready in nixos-config. Blocked on: (1) "LangLab env" 1Password item with GEMINI_API_KEY + CLAUDE_API_KEY, (2) langlab-env.age encryption, (3) flipper access to VLAN 20 for nixos-anywhere. See `DEPLOY_TODO.md`. _Added: 2026-04-12_
+- [x] **Homelab deployment** — Deployed 2026-04-14 to VMID 111 (192.168.20.11) via nixos-anywhere. Serving at https://langlab.vimba-stairs.ts.net. _Closed: 2026-04-14_
 
 ---
 

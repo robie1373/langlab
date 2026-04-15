@@ -12,6 +12,7 @@ let _user        = null;
 let _lessonData  = null;
 let _currentPhase = 0;
 let _sessionId   = null;
+let _bound       = false;  // event listeners wired once; re-init only resets state
 
 // ── phase list ────────────────────────────────────────────────────────────────
 
@@ -159,10 +160,16 @@ async function logSession() {
 // ── public API ────────────────────────────────────────────────────────────────
 
 export function initLesson(user) {
-  _user = user;
-  document.getElementById('btn-lesson-start').addEventListener('click', generateLesson);
-  document.getElementById('btn-lesson-back').addEventListener('click', prevPhase);
-  document.getElementById('btn-lesson-next').addEventListener('click', nextPhase);
+  _user         = user;
+  _lessonData   = null;
+  _sessionId    = null;
+  _currentPhase = 0;
+  if (!_bound) {
+    document.getElementById('btn-lesson-start').addEventListener('click', generateLesson);
+    document.getElementById('btn-lesson-back').addEventListener('click', prevPhase);
+    document.getElementById('btn-lesson-next').addEventListener('click', nextPhase);
+    _bound = true;
+  }
 }
 
 export function onLessonVisible() {

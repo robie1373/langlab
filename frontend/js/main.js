@@ -75,16 +75,21 @@ async function startSession(user) {
   buildAppBar(user);
   showView('view-app');
 
+  // Init lesson state synchronously before navigating so view-lessons
+  // starts clean (clears any previous user's lesson data).
+  if (initializedFor !== user.id) {
+    initLesson(user);
+  }
+
   // Navigate to default view immediately so the UI is responsive and
   // background inits can't clobber a view the user has already opened.
   const defaultView = user.default_lang === 'korean' ? 'view-player' : 'view-lessons';
   navigate(defaultView);   // fire-and-forget — starts initPlayer async
 
-  // Init modules (once per user)
+  // Init remaining modules (once per user)
   if (initializedFor !== user.id) {
     await initSpeech(user.default_lang === 'korean' ? 'ko-KR' : 'es-ES');
     initFlashcards(user);
-    initLesson(user);
     if (user.default_lang === 'spanish' || true) initTutor(user);  // both users
     initVocab(user);
     initProgress(user);
