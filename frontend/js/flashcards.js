@@ -7,6 +7,7 @@
 import { showToast } from './ui.js';
 import { showMastered, showXP } from './toast.js';
 import { checkAchievements } from './progress.js';
+import { speak } from './speech.js';
 
 let user        = null;
 let queue       = [];
@@ -136,15 +137,15 @@ function showCard(idx) {
   document.getElementById('fc-show-wrap').classList.remove('hidden');
   document.getElementById('fc-rating-wrap').classList.add('hidden');
 
-  // Audio
+  // Audio — clip if available, TTS fallback otherwise
   const audioBtn = document.getElementById('fc-audio-btn');
+  audioBtn.classList.remove('hidden');
   if (card.audio_path) {
-    audioBtn.classList.remove('hidden');
     audioEl.src = `/audio/${card.audio_path}`;
-    audioEl.play().catch(() => {});   // auto-play; ignore if blocked
+    audioEl.play().catch(() => {});
   } else {
-    audioBtn.classList.add('hidden');
     audioEl.src = '';
+    speak(card.word);
   }
 }
 
@@ -207,8 +208,12 @@ function bindButtons() {
 
   document.getElementById('fc-audio-btn').addEventListener('click', e => {
     e.stopPropagation();
+    const card = queue[current];
     if (audioEl.src) audioEl.play().catch(() => {});
+    else if (card) speak(card.word);
   });
+
+  document.addEventListener('langlab:vocab-imported', () => refresh());
 
   // Card click = show answer (when front showing)
   document.getElementById('fc-card').addEventListener('click', () => {

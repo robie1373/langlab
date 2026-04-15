@@ -110,6 +110,7 @@ body.dark {
   min-height: calc(100vh - 56px);
   padding: 1rem 1rem calc(1rem + var(--bar-h));
   gap: 0;
+  margin: 0 auto;
 }
 
 /* progress bar */
@@ -202,13 +203,13 @@ body.dark {
 .fc-card-wrap {
   width: 100%;
   max-width: 480px;
-  aspect-ratio: 3/2;
+  min-height: 260px;
   position: relative;
 }
 
 .fc-card {
   width: 100%;
-  height: 100%;
+  min-height: 260px;
   position: relative;
   transform-style: preserve-3d;
   transition: transform 0.45s cubic-bezier(0.4, 0.2, 0.2, 1);
@@ -231,6 +232,7 @@ body.dark {
   justify-content: center;
   padding: 2rem;
   border: 1px solid var(--border);
+  overflow: hidden;
 }
 
 .fc-back {
@@ -240,12 +242,15 @@ body.dark {
 
 .fc-word-display {
   font-family: 'Noto Serif KR', 'Malgun Gothic', serif;
-  font-size: clamp(2rem, 8vw, 3.5rem);
+  font-size: clamp(1.25rem, 4vw, 2.2rem);
   font-weight: 400;
   color: var(--fc-ink);
   letter-spacing: 0.02em;
-  line-height: 1.3;
+  line-height: 1.4;
   text-align: center;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .fc-back .fc-word-display {

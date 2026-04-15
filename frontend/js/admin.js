@@ -164,6 +164,7 @@ async function _doImportApkg() {
     if (!res.ok) throw new Error(data.error || res.statusText);
     _log(`✓ Imported ${data.imported} words into "${data.deck}" (${data.skipped} skipped).`, 'ok');
     await _refreshStats();
+    document.dispatchEvent(new CustomEvent('langlab:vocab-imported'));
   } catch (e) {
     _log(`✗ ${e.message}`, 'error');
   } finally {

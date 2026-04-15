@@ -14,7 +14,7 @@ Drop problems and feature requests here. These are picked up in future work sess
 
 - [x] **Flashcards appear to be presented in order** - Due cards sorted by due_at ASC (most overdue first); new cards (due_at IS NULL) randomised via SQLite RANDOM(). _Closed: 2026-04-12_
 
-- [ ] **flashcard deck picker** - The flashcard page needs a tool to select which decks are available, the status of each deck, including review numbers. _Added: 2026-04-12_ 
+- [ ] **Flashcard deck management + session configuration — major rethink** — The current queue screen is too naive. Needs full redesign: deck list with per-deck status (new/learning/review counts, word count, source), ability to enable/disable individual decks for a session, session configuration (new cards per session cap, review-only mode), and possibly study modes (e.g. cram, due-only, new-only). Visual design should match the review screen quality. The review screen itself is good — this is pre-session configuration only. _Added: 2026-04-15_
 
 - [x] **Progress view — streaks and achievements** — Full Progress & Rewards suite: streaks (current/best/lifetime, New Game+ framing), 52-week heat map, 27-badge achievement system (7 groups), XP system (per review/mastery/session/daily goal), card rarity (Fundamental/Essential/Interesting/Niche from frequency data), daily goal ring on flashcard queue, jackpot system (pity-guaranteed ~1 in 3 sessions), real-time toast notifications for badges/XP/mastery. _Closed: 2026-04-12_
 
