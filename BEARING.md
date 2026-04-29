@@ -34,6 +34,23 @@ _Last updated: 2026-04-14_
       cloud with their colour (Robie = forest green, Anna = royal blue). Subtle parallax
       PandR elements (badge icons, XP numbers) drifting in background.
 
+- [ ] **Vocab-aware reading passage generator.** LangLab has the known-words database
+      needed to power this. Approach: (1) query mastered/learning vocab up to a given
+      lesson to build a known-words list, (2) pass list + target level to Gemini to
+      generate short reading passages (90% known vocab, 10% new), (3) track introduced
+      new words as learning candidates, promote after N repetitions.
+
+      **Output format: language-tagged HTML** — not Markdown or plain text.
+      Tag each paragraph by script: `<p class="ko">` for Korean, `<p class="en">` for
+      English (glosses, notes, prompts). This lets Calibre + epub-to-xtc-converter
+      apply independent font sizes per language (e.g. Korean at 36px, English at 22px)
+      when rendering to XTCH for the X4. The same format is useful in LangLab's own
+      reader view — CSS can style Korean and English inline annotations differently.
+
+      Primary output target: Xtein X4 via the `~/nibbles/x4/` XTC pipeline
+      (`vtt-to-html.py` → `ebook-convert` → `epub-to-xtc-converter`).
+      This is the feature that makes the X4 a real Korean reading tool.
+
 - [ ] **Bulk ingest timeout strategy.** 18 lessons × ~300 clips = ~5400 ffmpeg calls.
       A browser upload will time out. Current fix: use CLI for bulk, web UI for
       one-off additions. Longer term: server-sent events (SSE) progress stream, or
