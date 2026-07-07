@@ -12,6 +12,7 @@ Language learning suite — VTT player, flashcards, AI lessons, conversational t
 |----------|-------------|
 | [api.md](api.md) | Full REST API reference |
 | [issues.md](issues.md) | Issue and feature queue |
+| [specs/README.md](specs/README.md) | Feature spec suite (01–05) — decision-complete, execute in order |
 | [runbooks/data-load.md](runbooks/data-load.md) | Load Pimsleur VTTs and Anki decks |
 | [runbooks/start-server.md](runbooks/start-server.md) | Start / stop the development server |
 
